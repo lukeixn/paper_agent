@@ -1,0 +1,14 @@
+pyyaml
+numpy
+
+# Optional online LLM support
+openai
+langchain-openai
+
+# Optional PDF parsing and embedding rebuild support
+pymupdf
+pydantic
+langchain-core
+sentence-transformers
+faiss-cpu
+langgraph

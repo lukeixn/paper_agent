@@ -1,0 +1,86 @@
+{
+    "0": {
+        "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
+        "file": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"
+    },
+    "1": {
+        "title": "DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention",
+        "file": "DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention"
+    },
+    "2": {
+        "title": "End-to-End Object Detection with Transformers",
+        "file": "End-to-End Object Detection with Transformers"
+    },
+    "3": {
+        "title": "FTCFormer: Fuzzy Token Clustering Transformer for Image Classification",
+        "file": "FTCFormer: Fuzzy Token Clustering Transformer for Image Classification"
+    },
+    "4": {
+        "title": "HAAT: Hybrid Attention Aggregation Transformer for Image Super-Resolution",
+        "file": "HAAT: Hybrid Attention Aggregation Transformer for Image Super-Resolution"
+    },
+    "5": {
+        "title": "HiT-SR: Hierarchical Transformer for Efficient Image Super-Resolution",
+        "file": "HiT-SR: Hierarchical Transformer for Efficient Image Super-Resolution"
+    },
+    "6": {
+        "title": "K-Net: Towards Unified Image Segmentation",
+        "file": "K-Net: Towards Unified Image Segmentation"
+    },
+    "7": {
+        "title": "Learning Streaming Video Representation via Multitask Training",
+        "file": "Learning Streaming Video Representation via Multitask Training"
+    },
+    "8": {
+        "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+        "file": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces"
+    },
+    "9": {
+        "title": "Mask R-CNN",
+        "file": "Mask R-CNN"
+    },
+    "10": {
+        "title": "MemoryMamba: Memory-Augmented State Space Model for Defect Recognition",
+        "file": "MemoryMamba: Memory-Augmented State Space Model for Defect Recognition"
+    },
+    "11": {
+        "title": "MeMViT: Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition",
+        "file": "MeMViT: Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition"
+    },
+    "12": {
+        "title": "Per-Pixel Classification is Not All You Need for Semantic Segmentation",
+        "file": "Per-Pixel Classification is Not All You Need for Semantic Segmentation"
+    },
+    "13": {
+        "title": "REOrdering Patches Improves Vision Models",
+        "file": "REOrdering Patches Improves Vision Models"
+    },
+    "14": {
+        "title": "StreamingVLM: Real-Time Understanding for Infinite Video Streams",
+        "file": "StreamingVLM: Real-Time Understanding for Infinite Video Streams"
+    },
+    "15": {
+        "title": "StreamMem: Query-Agnostic KV Cache Memory for Streaming Video Understanding",
+        "file": "StreamMem: Query-Agnostic KV Cache Memory for Streaming Video Understanding"
+    },
+    "16": {
+        "title": "VAMBA: Understanding Hour-Long Videos with Hybrid Mamba-Transformers",
+        "file": "VAMBA: Understanding Hour-Long Videos with Hybrid Mamba-Transformers"
+    },
+    "17": {
+        "title": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding",
+        "file": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding"
+    },
+    "18": {
+        "title": "VL-CACHE: SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION",
+        "file": "VL-CACHE: SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION"
+    },
+    "19": {
+        "title": "∞-VIDEO: A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation",
+        "file": "∞-VIDEO: A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation"
+    },
+    "20": {
+        "title": "论文的题目",
+        "file": "论文的题目"
+    }
+}
