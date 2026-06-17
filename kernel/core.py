@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from main import run_pipeline
+from workflow import run_pipeline
 
 
 class Kernel:

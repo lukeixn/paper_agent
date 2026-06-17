@@ -1,11 +1,12 @@
 # Paper Agent
 
-一个面向论文库的多 Agent 原型：根据用户问题检索相关论文，然后路由到多个分析 Agent，最后汇总成报告。
+一个面向论文库的多 Agent 原型：根据用户问题检索相关论文，然后通过 LangGraph 路由到多个分析 Agent，最后汇总成报告。
 
 ## 当前能力
 
 - 从 `data/*.json` 加载已有论文结构化数据。
 - 本地离线检索，不依赖 FAISS 或 embedding 模型也能运行主流程。
+- LangGraph 工作流组织 `retrieve -> route -> agents -> aggregate`。
 - Router 根据问题意图选择综述、创新点、方法路线、局限机会等 Agent。
 - 多 Agent 输出统一汇总为 Markdown 报告。
 - 配置在线 LLM 后，Agent 会优先使用大模型生成更强的分析。
@@ -14,6 +15,12 @@
 
 ```bash
 python main.py "视频理解方向最近有哪些值得关注的创新？" --top-k 5
+```
+
+强制检查 LangGraph：
+
+```bash
+python main.py "视频理解方向最近有哪些值得关注的创新？" --require-langgraph
 ```
 
 保存报告：
@@ -39,6 +46,7 @@ set OPENAI_API_KEY=你的key
 ## 主要目录
 
 - `main.py`: 主流程入口。
+- `workflow.py`: LangGraph 工作流定义。
 - `vector_store/search.py`: 本地论文检索。
 - `router.py`: 问题路由。
 - `agent/agent.py`: 多 Agent 实现。

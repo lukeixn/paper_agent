@@ -8,6 +8,7 @@ from schemas import Paper
 class MainState(TypedDict, total=False):
     query: str
     route: str
+    selected_agents: list[str]
     global_context: dict[str, Any]
     local_contexts: dict[str, Any]
     retrieved_papers: list[Paper]
@@ -20,6 +21,7 @@ def create_state(query: str) -> MainState:
     return {
         "query": query,
         "route": "",
+        "selected_agents": [],
         "global_context": {},
         "local_contexts": {},
         "retrieved_papers": [],
