@@ -1,616 +1,170 @@
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import fitz
-
+from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel
-
-from langchain_core.output_parsers import (
-    PydanticOutputParser
-)
-
 from sentence_transformers import SentenceTransformer
 
-from models.langchain_llm import get_llm
-from tkinter import Tk
-from tkinter.filedialog import (
-    askopenfilename,
-    askdirectory
-)
+from models.langchain_llm import OfflineLLM, get_llm
 
-# ==================================
-# Schema
-# ==================================
 
 class PaperInfo(BaseModel):
-
     title: str
-
     authors: list[str]
-
     abstract: str
-
     summary: str
-
     keywords: list[str]
-
     contributions: list[str]
-
     limitations: list[str]
-
     embedding: list[float]
 
 
 class PaperInfoTmp(BaseModel):
-
     title: str
-
     authors: list[str]
-
     abstract: str
-
     summary: str
-
     keywords: list[str]
-
     contributions: list[str]
-
     limitations: list[str]
 
 
-
-
-# ==================================
-# Parser
-# ==================================
-
 class PaperParser:
-
     def __init__(
         self,
-        embedding_model_name="BAAI/bge-small-zh-v1.5",
-        save_dir="data"
+        embedding_model_name: str = "BAAI/bge-small-zh-v1.5",
+        save_dir: str | Path = "data",
+        model_config: dict[str, Any] | None = None,
     ):
-
-        self.llm = get_llm()
-
-        self.embedding_model = SentenceTransformer(
-            embedding_model_name
+        self.model_config = model_config or {}
+        self.llm = get_llm(
+            provider=self.model_config.get("provider"),
+            api_key=self.model_config.get("api_key"),
+            model_name=self.model_config.get("model_name"),
+            base_url=self.model_config.get("base_url"),
+            temperature=self.model_config.get("temperature"),
         )
+        if isinstance(self.llm, OfflineLLM):
+            raise RuntimeError("解析 PDF 需要配置可用的在线 LLM。")
 
-        self.output_parser = PydanticOutputParser(
-            pydantic_object=PaperInfoTmp
-        )
-
+        self.embedding_model = SentenceTransformer(embedding_model_name)
+        self.output_parser = PydanticOutputParser(pydantic_object=PaperInfoTmp)
         self.save_dir = Path(save_dir)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
 
-        self.save_dir.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-        # ==================================
-    # 选择单个PDF
-    # ==================================
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        filename = re.sub(r'[<>:"/\\|?*]', "_", filename).strip().rstrip(".")
+        return filename or "untitled-paper"
 
-    def select_pdf_file(
-        self
-    ) -> str:
+    @staticmethod
+    def read_pdf(pdf_path: str | Path) -> str:
+        path = Path(pdf_path)
+        with fitz.open(path) as document:
+            text = "\n".join(page.get_text() for page in document)
 
-        root = Tk()
+        if not text.strip():
+            raise ValueError("PDF 中没有提取到文本，可能是扫描件或受保护文档。")
+        return text
 
-        root.withdraw()
-
-        pdf_path = askopenfilename(
-
-            title="选择论文PDF",
-
-            filetypes=[
-                ("PDF文件", "*.pdf")
+    @staticmethod
+    def build_embedding_text(paper: PaperInfoTmp) -> str:
+        return "\n".join(
+            [
+                f"标题：{paper.title}",
+                f"摘要：{paper.abstract}",
+                f"总结：{paper.summary}",
+                f"关键词：{' '.join(paper.keywords)}",
+                f"主要贡献：{' '.join(paper.contributions)}",
             ]
         )
 
-        root.destroy()
-
-        return pdf_path
-
-    # ==================================
-    # 选择论文目录
-    # ==================================
-
-    def select_pdf_directory(
-        self
-    ) -> str:
-
-        root = Tk()
-
-        root.withdraw()
-
-        directory = askdirectory(
-
-            title="选择论文目录"
-        )
-
-        root.destroy()
-
-        return directory
-
-    # ==================================
-    # 文件选择器解析单篇论文
-    # ==================================
-
-    def parse_pdf_from_dialog(
-        self,
-        save_json: bool = True
-    ) -> PaperInfo | None:
-
-        pdf_path = self.select_pdf_file()
-
-        if not pdf_path:
-
-            print(
-                "未选择PDF文件"
-            )
-
-            return None
-
-        print(
-            f"\n已选择文件:\n{pdf_path}"
-        )
-
-        return self.parse_pdf(
-            pdf_path,
-            save_json
-        )
-
-    # ==================================
-    # 文件选择器解析整个目录
-    # ==================================
-
-    def parse_directory_from_dialog(
-        self,
-        save_json: bool = True
-    ) -> list[PaperInfo]:
-        
-
-        directory = self.select_pdf_directory()
-
-        if not directory:
-
-            print(
-                "未选择目录"
-            )
-
-            return []
-
-        print(
-            f"\n已选择目录:\n{directory}"
-        )
-
-        return self.parse_directory(
-            directory,
-            save_json
-        )
-
-    # ==================================
-    # 文件名清洗
-    # ==================================
-
-    def sanitize_filename(
-        self,
-        filename: str
-    ) -> str:
-
-        filename = re.sub(
-            r'[<>:"/\\|?*]',
-            '_',
-            filename
-        )
-
-        filename = filename.strip()
-
-        return filename
-
-    # ==================================
-    # PDF读取
-    # ==================================
-
-    def read_pdf(
-        self,
-        pdf_path: str
-    ) -> str:
-
-        doc = fitz.open(pdf_path)
-
-        text = ""
-
-        for page in doc:
-
-            text += page.get_text()
-
-        return text
-
-    # ==================================
-    # 构造Embedding文本
-    # ==================================
-
-    def build_embedding_text(
-        self,
-        paper: PaperInfoTmp
-    ) -> str:
-
-        return f"""
-标题:
-{paper.title}
-
-摘要:
-{paper.abstract}
-
-总结:
-{paper.summary}
-
-关键词:
-{' '.join(paper.keywords)}
-
-主要贡献:
-{' '.join(paper.contributions)}
-"""
-
-    # ==================================
-    # 提取论文信息
-    # ==================================
-
-    def extract_paper_info(
-        self,
-        text: str
-    ) -> PaperInfoTmp:
-
+    def extract_paper_info(self, text: str) -> PaperInfoTmp:
         prompt = f"""
-你是一名资深科研助手。
-
-请分析论文。
-
-返回格式必须符合要求。
+你是一名资深科研助理。请分析下面的论文文本，并严格按照指定 JSON
+格式返回论文信息。
 
 {self.output_parser.get_format_instructions()}
 
 要求：
-
-1. summary使用中文
-
-2. contributions使用中文
-
-3. limitations使用中文
-
-4. keywords返回5~10个
+1. summary、contributions 和 limitations 使用中文。
+2. keywords 返回 5 到 10 个关键词。
+3. 不要虚构论文中没有出现的实验结论。
+4. summary 应包含研究问题、核心方法和主要结果。
 
 论文内容：
-
-{text[:25000]}
+{text[:30000]}
 """
+        response = self.llm.invoke(prompt)
+        return self.output_parser.parse(response.content)
 
-        response = self.llm.invoke(
-            prompt
-        )
-
-        print("\n============== LLM原始输出 ==============\n")
-
-        print(response.content)
-
-        paper_info = self.output_parser.parse(
-            response.content
-        )
-
-        return paper_info
-
-    # ==================================
-    # Embedding生成
-    # ==================================
-
-    def generate_embedding(
-        self,
-        paper: PaperInfoTmp
-    ):
-
-        embedding_text = self.build_embedding_text(
-            paper
-        )
-
+    def generate_embedding(self, paper: PaperInfoTmp) -> list[float]:
         embedding = self.embedding_model.encode(
-            embedding_text,
-            normalize_embeddings=True
+            self.build_embedding_text(paper),
+            normalize_embeddings=True,
         )
-
-        return embedding
-
-    # ==================================
-    # 保存JSON
-    # ==================================
+        return embedding.tolist()
 
     def save_paper_info(
         self,
-        paper: PaperInfo
-    ):
-
-        filename = self.sanitize_filename(
-            paper.title
-        )
-
+        paper: PaperInfo,
+        *,
+        overwrite: bool = False,
+    ) -> Path:
+        filename = self.sanitize_filename(paper.title)
         save_path = self.save_dir / f"{filename}.json"
+        if save_path.exists() and not overwrite:
+            raise FileExistsError(f"论文已存在：{paper.title}")
 
-        with open(
-            save_path,
-            "w",
-            encoding="utf8"
-        ) as f:
-
-            json.dump(
-                paper.model_dump(),
-                f,
-                ensure_ascii=False,
-                indent=4
-            )
-
-        print(
-            f"\n[保存成功] {save_path}"
+        temporary_path = save_path.with_suffix(".json.tmp")
+        temporary_path.write_text(
+            json.dumps(paper.model_dump(), ensure_ascii=False, indent=2),
+            encoding="utf8",
         )
+        temporary_path.replace(save_path)
+        return save_path
 
-    # ==================================
-    # 加载JSON
-    # ==================================
-
-    def load_paper_info(
-        self,
-        title: str
-    ) -> PaperInfo:
-
-        filename = self.sanitize_filename(
-            title
-        )
-
-        file_path = self.save_dir / f"{filename}.json"
-
-        if not file_path.exists():
-
-            raise FileNotFoundError(
-                f"论文不存在: {file_path}"
-            )
-
-        with open(
-            file_path,
-            "r",
-            encoding="utf8"
-        ) as f:
-
-            data = json.load(f)
-
-        return PaperInfo(
-            **data
-        )
-
-    # ==================================
-    # 获取所有论文
-    # ==================================
-
-    def load_all_papers(
-        self
-    ) -> list[PaperInfo]:
-
-        papers = []
-
-        for file in self.save_dir.glob(
-            "*.json"
-        ):
-
-            with open(
-                file,
-                "r",
-                encoding="utf8"
-            ) as f:
-
-                data = json.load(f)
-
-            papers.append(
-                PaperInfo(
-                    **data
-                )
-            )
-
-        return papers
-
-    # ==================================
-    # 完整流程
-    # ==================================
-    # ==================================
-# 批量解析目录
-# ==================================
-
-    def parse_directory(
-        self,
-        pdf_dir: str,
-        save_json: bool = True
-    ) -> list[PaperInfo]:
-
-        pdf_dir = Path(pdf_dir)
-
-        if not pdf_dir.exists():
-
-            raise FileNotFoundError(
-                f"目录不存在: {pdf_dir}"
-            )
-
-        pdf_files = list(
-            pdf_dir.glob("*.pdf")
-        )
-
-        print(
-            f"\n发现 {len(pdf_files)} 篇PDF论文"
-        )
-
-        papers = []
-
-        for idx, pdf_file in enumerate(
-            pdf_files,
-            start=1
-        ):
-
-            print("\n")
-            print("=" * 80)
-
-            print(
-                f"[{idx}/{len(pdf_files)}]"
-            )
-
-            print(
-                f"正在处理: {pdf_file.name}"
-            )
-
-            try:
-
-                paper = self.parse_pdf(
-                    str(pdf_file),
-                    save_json=save_json
-                )
-
-                papers.append(
-                    paper
-                )
-
-                print(
-                    f"✓ 成功: {paper.title}"
-                )
-
-            except Exception as e:
-
-                print(
-                    f"✗ 失败: {pdf_file.name}"
-                )
-
-                print(
-                    f"错误信息: {e}"
-                )
-
-        print("\n")
-        print("=" * 80)
-
-        print(
-            f"处理完成"
-        )
-
-        print(
-            f"成功: {len(papers)}"
-        )
-
-        print(
-            f"失败: {len(pdf_files)-len(papers)}"
-        )
-
-        return papers
-        def is_processed(
-        self,
-        pdf_path: str
-    ) -> bool:
-            pdf_path = Path(pdf_path)
-
-            filename = self.sanitize_filename(
-                pdf_path.stem
-            )
-
-            json_path = (
-                self.save_dir /
-                f"{filename}.json"
-            )
-
-            return json_path.exists()
     def parse_pdf(
         self,
-        pdf_path: str,
-        save_json: bool = True
+        pdf_path: str | Path,
+        *,
+        save_json: bool = True,
+        overwrite: bool = False,
     ) -> PaperInfo:
-
-        print(
-            f"\n开始解析PDF: {pdf_path}"
+        text = self.read_pdf(pdf_path)
+        extracted = self.extract_paper_info(text)
+        paper = PaperInfo(
+            **extracted.model_dump(),
+            embedding=self.generate_embedding(extracted),
         )
-
-        text = self.read_pdf(
-            pdf_path
-        )
-
-        paper = self.extract_paper_info(
-            text
-        )
-
-        embedding = self.generate_embedding(
-            paper
-        )
-
-        paper_info = PaperInfo(
-
-            title=paper.title,
-
-            authors=paper.authors,
-
-            abstract=paper.abstract,
-
-            summary=paper.summary,
-
-            keywords=paper.keywords,
-
-            contributions=paper.contributions,
-
-            limitations=paper.limitations,
-
-            embedding=embedding.tolist()
-        )
-
         if save_json:
+            self.save_paper_info(paper, overwrite=overwrite)
+        return paper
 
-            self.save_paper_info(
-                paper_info
-            )
+    def load_paper_info(self, title: str) -> PaperInfo:
+        path = self.save_dir / f"{self.sanitize_filename(title)}.json"
+        if not path.exists():
+            raise FileNotFoundError(f"论文不存在：{title}")
+        return PaperInfo.model_validate_json(path.read_text(encoding="utf8"))
 
-        return paper_info
+    def load_all_papers(self) -> list[PaperInfo]:
+        papers: list[PaperInfo] = []
+        for path in sorted(self.save_dir.glob("*.json")):
+            if path.name == "id_mapping.json":
+                continue
+            try:
+                papers.append(
+                    PaperInfo.model_validate_json(path.read_text(encoding="utf8"))
+                )
+            except (ValueError, json.JSONDecodeError):
+                continue
+        return papers
+
+
 if __name__ == "__main__":
-
-    parser = PaperParser()
-
-    # paper = parser.parse_pdf(
-    #     "papers/DEA-Net.pdf"
-    # )
-    # paper=parser.parse_directory(
-    #     "papers"
-    # )
-    parser.parse_pdf_from_dialog(
-        save_json=True
-    )
-
-
-    # print("\n")
-    # print("=" * 60)
-
-    # print("标题:")
-    # print(paper.title)
-
-    # print("\n作者:")
-    # print(paper.authors)
-
-    # print("\n关键词:")
-    # print(paper.keywords)
-
-    # print("\n主要贡献:")
-
-    # for item in paper.contributions:
-
-    #     print("-", item)
-
-    # print("\n局限性:")
-
-    # for item in paper.limitations:
-
-    #     print("-", item)
-
-    # print("\nEmbedding维度:")
-
-    # print(
-    #     len(paper.embedding)
-    # )
+    raise SystemExit("请通过 UI 上传 PDF，或在代码中调用 PaperParser.parse_pdf()。")

@@ -6,6 +6,7 @@ from typing import Any
 import streamlit as st
 
 from configs.config import cfg
+from paper_library import PaperLibrary
 from workflow import langgraph_available, run_pipeline_state
 
 
@@ -200,8 +201,181 @@ def render_result(state: dict[str, Any]) -> None:
             data=report.encode("utf-8"),
             file_name="paper-agent-report.md",
             mime="text/markdown",
-            use_container_width=True,
+            width="stretch",
         )
+
+
+def runtime_model_config(settings: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: settings[key]
+        for key in [
+            "provider",
+            "api_key",
+            "model_name",
+            "base_url",
+            "temperature",
+        ]
+    }
+
+
+def has_online_credentials(settings: dict[str, Any]) -> bool:
+    if settings["provider"] == "offline":
+        return False
+    environment_key = (
+        "DEEPSEEK_API_KEY"
+        if settings["provider"] == "deepseek"
+        else "OPENAI_API_KEY"
+    )
+    return bool(settings["api_key"] or os.getenv(environment_key))
+
+
+def render_library(settings: dict[str, Any]) -> None:
+    library = PaperLibrary()
+    stats = library.stats()
+
+    st.header("论文数据库")
+    st.caption("查看当前论文库，上传 PDF 并自动解析、生成向量和重建 FAISS 索引。")
+
+    columns = st.columns(3)
+    columns[0].metric("论文数量", stats["paper_count"])
+    columns[1].metric(
+        "Embedding 维度",
+        stats["embedding_dimension"] or "不一致",
+    )
+    columns[2].metric(
+        "FAISS 索引",
+        "可用" if stats["index_exists"] and stats["mapping_exists"] else "未建立",
+    )
+
+    upload_tab, database_tab = st.tabs(["导入论文", "当前论文"])
+
+    with upload_tab:
+        uploaded_files = st.file_uploader(
+            "选择 PDF",
+            type=["pdf"],
+            accept_multiple_files=True,
+            help="支持一次上传多篇论文。每篇论文会调用当前侧边栏配置的 LLM。",
+        )
+        overwrite = st.checkbox(
+            "覆盖同名论文",
+            value=False,
+            help="启用后允许覆盖已有 PDF 和同标题 JSON 数据。",
+        )
+
+        if settings["provider"] == "offline":
+            st.info("PDF 解析需要在线 LLM，请在侧边栏选择 DeepSeek 或 OpenAI。")
+        elif not has_online_credentials(settings):
+            st.info("请在侧边栏输入 API Key 后再导入论文。")
+
+        import_clicked = st.button(
+            "解析并加入论文库",
+            type="primary",
+            disabled=not uploaded_files,
+            width="stretch",
+        )
+        if import_clicked:
+            if not has_online_credentials(settings):
+                st.warning("导入论文需要可用的在线模型和 API Key。")
+            else:
+                try:
+                    with st.status("正在处理 PDF…", expanded=True) as status:
+                        st.write(f"准备解析 {len(uploaded_files)} 篇论文")
+                        results, index_result = library.import_many(
+                            uploaded_files,
+                            model_config=runtime_model_config(settings),
+                            overwrite=overwrite,
+                        )
+                        for result in results:
+                            if result.success:
+                                st.write(f"完成：{result.title}")
+                            else:
+                                st.write(
+                                    f"失败：{result.filename} - {result.message}"
+                                )
+                        status.update(
+                            label="论文库更新完成",
+                            state="complete",
+                            expanded=True,
+                        )
+
+                    successful = [
+                        result for result in results if result.success
+                    ]
+                    failed = [result for result in results if not result.success]
+                    if successful:
+                        st.success(f"成功加入 {len(successful)} 篇论文。")
+                    for result in failed:
+                        st.error(f"{result.filename}：{result.message}")
+                    if index_result:
+                        st.caption(
+                            "FAISS 已重建："
+                            f"{index_result['paper_count']} 篇，"
+                            f"{index_result['dimension']} 维。"
+                        )
+                    st.session_state["library_updated"] = True
+                except Exception as exc:
+                    st.error(f"论文导入未能启动：{exc}")
+
+    with database_tab:
+        papers = library.list_papers()
+        search_text = st.text_input(
+            "筛选论文",
+            placeholder="输入标题、作者或关键词",
+        ).strip().lower()
+        if search_text:
+            papers = [
+                paper
+                for paper in papers
+                if search_text
+                in " ".join(
+                    [
+                        paper.title,
+                        " ".join(paper.authors),
+                        " ".join(paper.keywords),
+                    ]
+                ).lower()
+            ]
+
+        rows = [
+            {
+                "标题": paper.title,
+                "作者": "、".join(paper.authors[:4]),
+                "关键词": "、".join(paper.keywords[:6]),
+                "向量维度": len(paper.embedding),
+            }
+            for paper in papers
+        ]
+        st.dataframe(
+            rows,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "标题": st.column_config.TextColumn(width="large"),
+                "作者": st.column_config.TextColumn(width="medium"),
+                "关键词": st.column_config.TextColumn(width="medium"),
+                "向量维度": st.column_config.NumberColumn(width="small"),
+            },
+        )
+
+        with st.expander("论文详情"):
+            if papers:
+                selected_title = st.selectbox(
+                    "选择论文",
+                    [paper.title for paper in papers],
+                )
+                selected = next(
+                    paper for paper in papers if paper.title == selected_title
+                )
+                st.subheader(selected.title)
+                if selected.authors:
+                    st.caption("作者：" + "、".join(selected.authors))
+                st.write(selected.summary or selected.abstract or "暂无摘要。")
+                if selected.contributions:
+                    st.markdown("**主要贡献**")
+                    for contribution in selected.contributions:
+                        st.markdown(f"- {contribution}")
+            else:
+                st.info("当前筛选条件下没有论文。")
 
 
 def main() -> None:
@@ -214,6 +388,11 @@ def main() -> None:
     apply_styles()
 
     settings = model_settings()
+    st.sidebar.divider()
+    workspace = st.sidebar.radio(
+        "工作区",
+        ["研究分析", "论文数据库"],
+    )
     st.sidebar.divider()
     st.sidebar.caption(
         "API Key 只保存在当前浏览器会话中，不会写入配置文件或报告。"
@@ -230,6 +409,10 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
+    if workspace == "论文数据库":
+        render_library(settings)
+        return
+
     query = st.text_area(
         "研究问题",
         placeholder="例如：Mamba 在长视频理解中的优势、局限和研究机会是什么？",
@@ -239,7 +422,7 @@ def main() -> None:
     run_clicked = st.button(
         "开始分析",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )
     if run_clicked:
         if not query.strip():
@@ -260,16 +443,7 @@ def main() -> None:
                 state = run_pipeline_state(
                     query.strip(),
                     top_k=settings["top_k"],
-                    model_config={
-                        key: settings[key]
-                        for key in [
-                            "provider",
-                            "api_key",
-                            "model_name",
-                            "base_url",
-                            "temperature",
-                        ]
-                    },
+                    model_config=runtime_model_config(settings),
                     require_langgraph=True,
                 )
                 status.update(label="分析完成", state="complete", expanded=False)

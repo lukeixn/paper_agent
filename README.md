@@ -12,6 +12,11 @@ D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py
 
 浏览器打开 `http://localhost:8501`。API Key 在侧边栏输入，只保存在当前 UI 会话中，不会写入配置文件。
 
+UI 包含两个工作区：
+
+- **研究分析**：检索论文并通过 LangGraph 调度多个 Agent。
+- **论文数据库**：查看库中论文，批量上传 PDF，自动解析并重建 FAISS。
+
 ## 命令行
 
 ```powershell

@@ -12,6 +12,7 @@ def test_offline_analysis_ui() -> None:
     assert [text_area.label for text_area in app.text_area] == ["研究问题"]
 
     app.selectbox[0].set_value("offline").run()
+    app.radio[0].set_value("研究分析").run()
     app.text_area[0].set_value("Mamba innovation limitation").run()
     app.slider[1].set_value(10).run()
     app.button[0].click().run(timeout=90)
@@ -33,6 +34,21 @@ def test_offline_analysis_ui() -> None:
     assert state["global_context"]["model_config"]["api_key"] == ""
 
 
+def test_library_workspace() -> None:
+    app = AppTest.from_file("ui.py", default_timeout=90)
+    app.run()
+    app.selectbox[0].set_value("offline").run()
+    app.radio[0].set_value("论文数据库").run()
+
+    assert len(app.exception) == 0
+    assert [tab.label for tab in app.tabs] == ["导入论文", "当前论文"]
+    assert [uploader.label for uploader in app.file_uploader] == ["选择 PDF"]
+    metrics = {metric.label: metric.value for metric in app.metric}
+    assert int(metrics["论文数量"]) > 0
+    assert metrics["FAISS 索引"] == "可用"
+
+
 if __name__ == "__main__":
     test_offline_analysis_ui()
+    test_library_workspace()
     print("streamlit UI tests passed")
