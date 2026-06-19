@@ -5,6 +5,7 @@ from typing import Any
 
 import streamlit as st
 
+from academic_search import AcademicSearchService
 from configs.config import cfg
 from paper_library import PaperLibrary
 from workflow import langgraph_available, run_pipeline_state
@@ -247,7 +248,9 @@ def render_library(settings: dict[str, Any]) -> None:
         "可用" if stats["index_exists"] and stats["mapping_exists"] else "未建立",
     )
 
-    upload_tab, database_tab = st.tabs(["导入论文", "当前论文"])
+    upload_tab, search_tab, database_tab = st.tabs(
+        ["上传 PDF", "在线检索", "当前论文"]
+    )
 
     with upload_tab:
         uploaded_files = st.file_uploader(
@@ -316,6 +319,189 @@ def render_library(settings: dict[str, Any]) -> None:
                 except Exception as exc:
                     st.error(f"论文导入未能启动：{exc}")
 
+    with search_tab:
+        st.caption(
+            "使用 OpenAlex 获取最多 100 篇开放获取候选，"
+            "通过 BGE 语义模型排序后，可选择最多 10 篇导入。"
+        )
+        scholar_query = st.text_input(
+            "检索内容",
+            placeholder="例如：long video understanding memory",
+            key="academic_search_query",
+        )
+        search_clicked = st.button(
+            "检索并进行 AI 排名",
+            key="academic_search_button",
+            width="stretch",
+        )
+        if search_clicked:
+            if not scholar_query.strip():
+                st.warning("请输入论文检索内容。")
+            elif not has_online_credentials(settings):
+                st.warning("AI 排名需要在线模型和 API Key。")
+            else:
+                try:
+                    with st.status(
+                        "正在检索并对 100 篇候选进行语义排名…",
+                        expanded=True,
+                    ) as status:
+                        existing_titles = {
+                            paper.title for paper in library.list_papers()
+                        }
+                        candidates = AcademicSearchService().search(
+                            scholar_query,
+                            max_candidates=100,
+                            existing_titles=existing_titles,
+                            model_config=runtime_model_config(settings),
+                        )
+                        st.session_state["academic_candidates"] = candidates
+                        status.update(
+                            label=f"排名完成，共获得 {len(candidates)} 篇候选",
+                            state="complete",
+                            expanded=False,
+                        )
+                except Exception as exc:
+                    st.error(f"在线检索失败：{exc}")
+
+        candidates = st.session_state.get("academic_candidates", [])
+        if candidates:
+            visible_candidates = candidates[:30]
+            default_selected_ranks = {
+                candidate.rank
+                for candidate in visible_candidates
+                if candidate.importable
+            }
+            default_selected_ranks = set(
+                sorted(default_selected_ranks)[:10]
+            )
+            rows = [
+                {
+                    "选择": candidate.rank in default_selected_ranks,
+                    "排名": candidate.rank,
+                    "标题": candidate.title,
+                    "年份": candidate.year,
+                    "作者": "、".join(candidate.authors[:3]),
+                    "AI 契合度": candidate.final_score,
+                    "引用": candidate.cited_by_count,
+                    "公开 PDF": bool(candidate.pdf_url),
+                    "已在库中": candidate.already_exists,
+                    "论文页面": candidate.landing_page_url,
+                }
+                for candidate in visible_candidates
+            ]
+            edited_rows = st.data_editor(
+                rows,
+                key="academic_result_editor",
+                width="stretch",
+                hide_index=True,
+                disabled=[
+                    "排名",
+                    "标题",
+                    "年份",
+                    "作者",
+                    "AI 契合度",
+                    "引用",
+                    "公开 PDF",
+                    "已在库中",
+                    "论文页面",
+                ],
+                column_config={
+                    "选择": st.column_config.CheckboxColumn(width="small"),
+                    "排名": st.column_config.NumberColumn(width="small"),
+                    "标题": st.column_config.TextColumn(width="large"),
+                    "年份": st.column_config.NumberColumn(width="small"),
+                    "AI 契合度": st.column_config.ProgressColumn(
+                        min_value=0.0,
+                        max_value=1.0,
+                        format="%.3f",
+                        width="medium",
+                    ),
+                    "公开 PDF": st.column_config.CheckboxColumn(width="small"),
+                    "已在库中": st.column_config.CheckboxColumn(width="small"),
+                    "论文页面": st.column_config.LinkColumn(width="small"),
+                },
+            )
+            selected_ranks = {
+                int(row["排名"])
+                for row in edited_rows
+                if row["选择"]
+            }
+            selected_candidates = [
+                candidate
+                for candidate in candidates
+                if candidate.rank in selected_ranks
+            ]
+            invalid_candidates = [
+                candidate
+                for candidate in selected_candidates
+                if not candidate.importable
+            ]
+            st.caption(
+                f"已选择 {len(selected_candidates)} 篇；"
+                "页面展示 AI 排名前 30 篇。"
+            )
+
+            import_online_clicked = st.button(
+                "下载并加入论文库",
+                key="academic_import_button",
+                type="primary",
+                width="stretch",
+                disabled=not selected_candidates,
+            )
+            if import_online_clicked:
+                if len(selected_candidates) > 10:
+                    st.warning("单次最多导入 10 篇，请减少选择。")
+                elif invalid_candidates:
+                    st.warning("选择中包含无公开 PDF 或已存在的论文。")
+                elif not has_online_credentials(settings):
+                    st.warning("导入论文需要在线模型和 API Key。")
+                else:
+                    try:
+                        with st.status(
+                            "正在下载、解析并建立索引…",
+                            expanded=True,
+                        ) as status:
+                            results, index_result = (
+                                library.import_search_candidates(
+                                    selected_candidates,
+                                    model_config=runtime_model_config(settings),
+                                )
+                            )
+                            for result in results:
+                                prefix = "完成" if result.success else "失败"
+                                st.write(
+                                    f"{prefix}："
+                                    f"{result.title or result.filename}"
+                                )
+                            status.update(
+                                label="在线论文导入完成",
+                                state="complete",
+                                expanded=True,
+                            )
+
+                        successful = [
+                            result for result in results if result.success
+                        ]
+                        failed = [
+                            result for result in results if not result.success
+                        ]
+                        if successful:
+                            st.success(
+                                f"成功加入 {len(successful)} 篇论文。"
+                            )
+                        for result in failed:
+                            st.error(
+                                f"{result.filename}：{result.message}"
+                            )
+                        if index_result:
+                            st.caption(
+                                "FAISS 已重建："
+                                f"{index_result['paper_count']} 篇，"
+                                f"{index_result['dimension']} 维。"
+                            )
+                    except Exception as exc:
+                        st.error(f"在线论文导入未能启动：{exc}")
+
     with database_tab:
         papers = library.list_papers()
         search_text = st.text_input(
@@ -342,6 +528,8 @@ def render_library(settings: dict[str, Any]) -> None:
                 "作者": "、".join(paper.authors[:4]),
                 "关键词": "、".join(paper.keywords[:6]),
                 "向量维度": len(paper.embedding),
+                "来源": paper.discovery_source or "本地导入",
+                "原始页面": paper.source_url,
             }
             for paper in papers
         ]
@@ -354,6 +542,8 @@ def render_library(settings: dict[str, Any]) -> None:
                 "作者": st.column_config.TextColumn(width="medium"),
                 "关键词": st.column_config.TextColumn(width="medium"),
                 "向量维度": st.column_config.NumberColumn(width="small"),
+                "来源": st.column_config.TextColumn(width="small"),
+                "原始页面": st.column_config.LinkColumn(width="small"),
             },
         )
 

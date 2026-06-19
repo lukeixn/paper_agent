@@ -7,6 +7,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, BinaryIO
 
+from academic_search import AcademicSearchService, SearchCandidate
 from paper_parser import PaperInfo, PaperParser
 from schemas import Paper
 from vector_store.build_faiss import build_faiss
@@ -128,6 +129,71 @@ class PaperLibrary:
                 results.append(
                     ImportResult(
                         filename=uploaded_file.name,
+                        success=False,
+                        message=str(exc),
+                    )
+                )
+
+        index_result = self.rebuild_index() if imported else None
+        return results, index_result
+
+    def import_search_candidates(
+        self,
+        candidates: list[SearchCandidate],
+        *,
+        model_config: dict[str, Any],
+        overwrite: bool = False,
+    ) -> tuple[list[ImportResult], dict[str, Any] | None]:
+        if len(candidates) > 10:
+            raise ValueError("单次最多导入 10 篇论文。")
+
+        search_service = AcademicSearchService()
+        parser = PaperParser(
+            save_dir=self.data_dir,
+            model_config=model_config,
+        )
+        results: list[ImportResult] = []
+        imported = False
+
+        for candidate in candidates:
+            try:
+                pdf_buffer = search_service.download_pdf(candidate)
+                paper = self.import_pdf(
+                    pdf_buffer,
+                    pdf_buffer.name,
+                    model_config=model_config,
+                    overwrite=overwrite,
+                    parser=parser,
+                )
+                paper_path = (
+                    self.data_dir
+                    / f"{PaperParser.sanitize_filename(paper.title)}.json"
+                )
+                paper_data = json.loads(paper_path.read_text(encoding="utf8"))
+                paper_data.update(
+                    {
+                        "doi": candidate.doi,
+                        "source_url": candidate.landing_page_url,
+                        "discovery_source": "OpenAlex",
+                    }
+                )
+                paper_path.write_text(
+                    json.dumps(paper_data, ensure_ascii=False, indent=2),
+                    encoding="utf8",
+                )
+                results.append(
+                    ImportResult(
+                        filename=pdf_buffer.name,
+                        success=True,
+                        title=paper.title,
+                        message="下载、解析并保存成功",
+                    )
+                )
+                imported = True
+            except Exception as exc:
+                results.append(
+                    ImportResult(
+                        filename=candidate.title,
                         success=False,
                         message=str(exc),
                     )

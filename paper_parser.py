@@ -22,6 +22,9 @@ class PaperInfo(BaseModel):
     contributions: list[str]
     limitations: list[str]
     embedding: list[float]
+    doi: str = ""
+    source_url: str = ""
+    discovery_source: str = ""
 
 
 class PaperInfoTmp(BaseModel):
@@ -52,7 +55,10 @@ class PaperParser:
         if isinstance(self.llm, OfflineLLM):
             raise RuntimeError("解析 PDF 需要配置可用的在线 LLM。")
 
-        self.embedding_model = SentenceTransformer(embedding_model_name)
+        self.embedding_model = SentenceTransformer(
+            embedding_model_name,
+            local_files_only=True,
+        )
         self.output_parser = PydanticOutputParser(pydantic_object=PaperInfoTmp)
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)

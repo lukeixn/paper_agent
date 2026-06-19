@@ -41,7 +41,11 @@ def test_library_workspace() -> None:
     app.radio[0].set_value("论文数据库").run()
 
     assert len(app.exception) == 0
-    assert [tab.label for tab in app.tabs] == ["导入论文", "当前论文"]
+    assert [tab.label for tab in app.tabs] == [
+        "上传 PDF",
+        "在线检索",
+        "当前论文",
+    ]
     assert [uploader.label for uploader in app.file_uploader] == ["选择 PDF"]
     metrics = {metric.label: metric.value for metric in app.metric}
     assert int(metrics["论文数量"]) > 0

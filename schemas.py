@@ -14,6 +14,9 @@ class Paper:
     contributions: list[str] = field(default_factory=list)
     limitations: list[str] = field(default_factory=list)
     embedding: list[float] = field(default_factory=list)
+    doi: str = ""
+    source_url: str = ""
+    discovery_source: str = ""
     source_file: str = ""
     score: float = 0.0
 
@@ -34,6 +37,9 @@ class Paper:
             contributions=list(data.get("contributions") or []),
             limitations=list(data.get("limitations") or []),
             embedding=list(data.get("embedding") or []),
+            doi=str(data.get("doi", "")),
+            source_url=str(data.get("source_url", "")),
+            discovery_source=str(data.get("discovery_source", "")),
             source_file=source_file,
             score=score,
         )
