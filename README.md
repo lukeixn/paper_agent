@@ -12,6 +12,9 @@ D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py
 
 浏览器打开 `http://localhost:8501`。API Key 在侧边栏输入，只保存在当前 UI 会话中，不会写入配置文件。
 
+也可以直接双击项目根目录的 `start_ui.bat`，新版界面会运行在
+`http://localhost:8502`。使用期间请保持启动窗口开启。
+
 UI 包含三个工作区：
 
 - **研究分析**：检索论文并通过 LangGraph 调度多个 Agent。
