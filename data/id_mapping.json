@@ -1,86 +1,252 @@
 {
-    "0": {
-        "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
-        "file": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"
-    },
-    "1": {
-        "title": "DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention",
-        "file": "DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention"
-    },
-    "2": {
-        "title": "End-to-End Object Detection with Transformers",
-        "file": "End-to-End Object Detection with Transformers"
-    },
-    "3": {
-        "title": "FTCFormer: Fuzzy Token Clustering Transformer for Image Classification",
-        "file": "FTCFormer: Fuzzy Token Clustering Transformer for Image Classification"
-    },
-    "4": {
-        "title": "HAAT: Hybrid Attention Aggregation Transformer for Image Super-Resolution",
-        "file": "HAAT: Hybrid Attention Aggregation Transformer for Image Super-Resolution"
-    },
-    "5": {
-        "title": "HiT-SR: Hierarchical Transformer for Efficient Image Super-Resolution",
-        "file": "HiT-SR: Hierarchical Transformer for Efficient Image Super-Resolution"
-    },
-    "6": {
-        "title": "K-Net: Towards Unified Image Segmentation",
-        "file": "K-Net: Towards Unified Image Segmentation"
-    },
-    "7": {
-        "title": "Learning Streaming Video Representation via Multitask Training",
-        "file": "Learning Streaming Video Representation via Multitask Training"
-    },
-    "8": {
-        "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
-        "file": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces"
-    },
-    "9": {
-        "title": "Mask R-CNN",
-        "file": "Mask R-CNN"
-    },
-    "10": {
-        "title": "MemoryMamba: Memory-Augmented State Space Model for Defect Recognition",
-        "file": "MemoryMamba: Memory-Augmented State Space Model for Defect Recognition"
-    },
-    "11": {
-        "title": "MeMViT: Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition",
-        "file": "MeMViT: Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition"
-    },
-    "12": {
-        "title": "Per-Pixel Classification is Not All You Need for Semantic Segmentation",
-        "file": "Per-Pixel Classification is Not All You Need for Semantic Segmentation"
-    },
-    "13": {
-        "title": "REOrdering Patches Improves Vision Models",
-        "file": "REOrdering Patches Improves Vision Models"
-    },
-    "14": {
-        "title": "StreamingVLM: Real-Time Understanding for Infinite Video Streams",
-        "file": "StreamingVLM: Real-Time Understanding for Infinite Video Streams"
-    },
-    "15": {
-        "title": "StreamMem: Query-Agnostic KV Cache Memory for Streaming Video Understanding",
-        "file": "StreamMem: Query-Agnostic KV Cache Memory for Streaming Video Understanding"
-    },
-    "16": {
-        "title": "VAMBA: Understanding Hour-Long Videos with Hybrid Mamba-Transformers",
-        "file": "VAMBA: Understanding Hour-Long Videos with Hybrid Mamba-Transformers"
-    },
-    "17": {
-        "title": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding",
-        "file": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding"
-    },
-    "18": {
-        "title": "VL-CACHE: SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION",
-        "file": "VL-CACHE: SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION"
-    },
-    "19": {
-        "title": "∞-VIDEO: A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation",
-        "file": "∞-VIDEO: A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation"
-    },
-    "20": {
-        "title": "论文的题目",
-        "file": "论文的题目"
-    }
+  "0": {
+    "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
+    "json_file": "An Image is Worth 16x16 Words_ Transformers for Image Recognition at Scale.json",
+    "authors": [
+      "Alexey Dosovitskiy",
+      "Lucas Beyer",
+      "Alexander Kolesnikov",
+      "Dirk Weissenborn",
+      "Xiaohua Zhai",
+      "Thomas Unterthiner",
+      "Mostafa Dehghani",
+      "Matthias Minderer",
+      "Georg Heigold",
+      "Sylvain Gelly",
+      "Jakob Uszkoreit",
+      "Neil Houlsby"
+    ]
+  },
+  "1": {
+    "title": "DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention",
+    "json_file": "DEA-Net_ Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention.json",
+    "authors": [
+      "Zixuan Chen",
+      "Zewei He",
+      "Zhe-Ming Lu"
+    ]
+  },
+  "2": {
+    "title": "End-to-End Object Detection with Transformers",
+    "json_file": "End-to-End Object Detection with Transformers.json",
+    "authors": [
+      "Nicolas Carion",
+      "Francisco Massa",
+      "Gabriel Synnaeve",
+      "Nicolas Usunier",
+      "Alexander Kirillov",
+      "Sergey Zagoruyko"
+    ]
+  },
+  "3": {
+    "title": "FTCFormer: Fuzzy Token Clustering Transformer for Image Classification",
+    "json_file": "FTCFormer_ Fuzzy Token Clustering Transformer for Image Classification.json",
+    "authors": [
+      "Muyi Bao",
+      "Changyu Zeng",
+      "Yifan Wang",
+      "Zhengni Yang",
+      "Zimu Wang",
+      "Guangliang Cheng",
+      "Jun Qi",
+      "Wei Wang"
+    ]
+  },
+  "4": {
+    "title": "HAAT: Hybrid Attention Aggregation Transformer for Image Super-Resolution",
+    "json_file": "HAAT_ Hybrid Attention Aggregation Transformer for Image Super-Resolution.json",
+    "authors": [
+      "Song-Jiang Lai",
+      "Tsun-Hin Cheung",
+      "Ka-Chun Fung",
+      "Kai-wen Xue",
+      "Kin-Man Lam"
+    ]
+  },
+  "5": {
+    "title": "HiT-SR: Hierarchical Transformer for Efficient Image Super-Resolution",
+    "json_file": "HiT-SR_ Hierarchical Transformer for Efficient Image Super-Resolution.json",
+    "authors": [
+      "Xiang Zhang",
+      "Yulun Zhang",
+      "Fisher Yu"
+    ]
+  },
+  "6": {
+    "title": "K-Net: Towards Unified Image Segmentation",
+    "json_file": "K-Net_ Towards Unified Image Segmentation.json",
+    "authors": [
+      "Wenwei Zhang",
+      "Jiangmiao Pang",
+      "Kai Chen",
+      "Chen Change Loy"
+    ]
+  },
+  "7": {
+    "title": "Learning Streaming Video Representation via Multitask Training",
+    "json_file": "Learning Streaming Video Representation via Multitask Training.json",
+    "authors": [
+      "Yibin Yan",
+      "Jilan Xu",
+      "Shangzhe Di",
+      "Yikun Liu",
+      "Yudi Shi",
+      "Qirui Chen",
+      "Zeqian Li",
+      "Yifei Huang",
+      "Weidi Xie"
+    ]
+  },
+  "8": {
+    "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+    "json_file": "Mamba_ Linear-Time Sequence Modeling with Selective State Spaces.json",
+    "authors": [
+      "Albert Gu",
+      "Tri Dao"
+    ]
+  },
+  "9": {
+    "title": "Mask R-CNN",
+    "json_file": "Mask R-CNN.json",
+    "authors": [
+      "Kaiming He",
+      "Georgia Gkioxari",
+      "Piotr Dollár",
+      "Ross Girshick"
+    ]
+  },
+  "10": {
+    "title": "MemoryMamba: Memory-Augmented State Space Model for Defect Recognition",
+    "json_file": "MemoryMamba_ Memory-Augmented State Space Model for Defect Recognition.json",
+    "authors": [
+      "Qianning Wang",
+      "He Hu",
+      "Yucheng Zhou"
+    ]
+  },
+  "11": {
+    "title": "MeMViT: Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition",
+    "json_file": "MeMViT_ Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition.json",
+    "authors": [
+      "Chao-Yuan Wu",
+      "Yanghao Li",
+      "Karttikeya Mangalam",
+      "Haoqi Fan",
+      "Bo Xiong",
+      "Jitendra Malik",
+      "Christoph Feichtenhofer"
+    ]
+  },
+  "12": {
+    "title": "Per-Pixel Classification is Not All You Need for Semantic Segmentation",
+    "json_file": "Per-Pixel Classification is Not All You Need for Semantic Segmentation.json",
+    "authors": [
+      "Bowen Cheng",
+      "Alexander G. Schwing",
+      "Alexander Kirillov"
+    ]
+  },
+  "13": {
+    "title": "REOrdering Patches Improves Vision Models",
+    "json_file": "REOrdering Patches Improves Vision Models.json",
+    "authors": [
+      "Declan Kutscher",
+      "David M. Chan",
+      "Yutong Bai",
+      "Trevor Darrell",
+      "Ritwik Gupta"
+    ]
+  },
+  "14": {
+    "title": "Streaming Video over the Internet: Approaches and Directions",
+    "json_file": "Streaming Video over the Internet_ Approaches and Directions.json",
+    "authors": [
+      "Dapeng Wu",
+      "Yiwei Thomas Hou",
+      "Wenwu Zhu",
+      "Ya-Qin Zhang",
+      "Jon M. Peha"
+    ]
+  },
+  "15": {
+    "title": "StreamingVLM: Real-Time Understanding for Infinite Video Streams",
+    "json_file": "StreamingVLM_ Real-Time Understanding for Infinite Video Streams.json",
+    "authors": [
+      "Ruyi Xu",
+      "Guangxuan Xiao",
+      "Yukang Chen",
+      "Liuning He",
+      "Kelly Peng",
+      "Yao Lu",
+      "Song Han"
+    ]
+  },
+  "16": {
+    "title": "StreamMem: Query-Agnostic KV Cache Memory for Streaming Video Understanding",
+    "json_file": "StreamMem_ Query-Agnostic KV Cache Memory for Streaming Video Understanding.json",
+    "authors": [
+      "Yanlai Yang",
+      "Zhuokai Zhao",
+      "Satya Narayan Shukla",
+      "Aashu Singh",
+      "Shlok Kumar Mishra",
+      "Lizhu Zhang",
+      "Mengye Ren"
+    ]
+  },
+  "17": {
+    "title": "VAMBA: Understanding Hour-Long Videos with Hybrid Mamba-Transformers",
+    "json_file": "VAMBA_ Understanding Hour-Long Videos with Hybrid Mamba-Transformers.json",
+    "authors": [
+      "Weiming Ren",
+      "Wentao Ma",
+      "Huan Yang",
+      "Cong Wei",
+      "Ge Zhang",
+      "Wenhu Chen"
+    ]
+  },
+  "18": {
+    "title": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding",
+    "json_file": "Video Mamba Suite_ State Space Model as a Versatile Alternative for Video Understanding.json",
+    "authors": [
+      "Guo Chen",
+      "Yifei Huang",
+      "Jilan Xu",
+      "Baoqi Pei",
+      "Zhe Chen",
+      "Zhiqi Li",
+      "Jiahao Wang",
+      "Kunchang Li",
+      "Tong Lu",
+      "Limin Wang"
+    ]
+  },
+  "19": {
+    "title": "VL-CACHE: SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION",
+    "json_file": "VL-CACHE_ SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION.json",
+    "authors": [
+      "Dezhan Tu",
+      "Danylo Vashchilenko",
+      "Yuzhe Lu",
+      "Panpan Xu"
+    ]
+  },
+  "20": {
+    "title": "∞-VIDEO: A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation",
+    "json_file": "∞-VIDEO_ A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation.json",
+    "authors": [
+      "Saul Santos",
+      "António Farinhas",
+      "Daniel C. McNamee",
+      "André F. T. Martins"
+    ]
+  },
+  "21": {
+    "title": "论文的题目",
+    "json_file": "论文的题目.json",
+    "authors": [
+      "作者"
+    ]
+  }
 }
