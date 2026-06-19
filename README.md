@@ -12,12 +12,13 @@ D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py
 
 浏览器打开 `http://localhost:8501`。API Key 在侧边栏输入，只保存在当前 UI 会话中，不会写入配置文件。
 
-UI 包含两个工作区：
+UI 包含三个工作区：
 
 - **研究分析**：检索论文并通过 LangGraph 调度多个 Agent。
-- **论文数据库**：查看库中论文，批量上传 PDF，自动解析并重建 FAISS。
-- **在线检索**：从 OpenAlex 获取最多 100 篇开放获取候选，经当前
-  DeepSeek/OpenAI 模型进行 AI 重排后，单次最多导入 10 篇公开 PDF。
+- **论文检索**：用户主动发起搜索，从 OpenAlex 获取最多 100 篇开放
+  获取候选，经 DeepSeek/OpenAI 重排后，由用户手动选择最多 10 篇导入。
+- **论文数据库**：只负责查看已有论文和上传本地 PDF，自动解析并重建
+  FAISS。
 
 说明：项目不会自动抓取明确禁止爬虫访问的网站，也不会绕过验证码、登录或下载限制。
 

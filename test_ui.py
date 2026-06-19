@@ -41,18 +41,29 @@ def test_library_workspace() -> None:
     app.radio[0].set_value("论文数据库").run()
 
     assert len(app.exception) == 0
-    assert [tab.label for tab in app.tabs] == [
-        "上传 PDF",
-        "在线检索",
-        "当前论文",
-    ]
+    assert [tab.label for tab in app.tabs] == ["上传 PDF", "当前论文"]
     assert [uploader.label for uploader in app.file_uploader] == ["选择 PDF"]
+    assert "检索内容" not in [text.label for text in app.text_input]
     metrics = {metric.label: metric.value for metric in app.metric}
     assert int(metrics["论文数量"]) > 0
     assert metrics["FAISS 索引"] == "可用"
 
 
+def test_academic_search_is_independent_workspace() -> None:
+    app = AppTest.from_file("ui.py", default_timeout=90)
+    app.run()
+    app.selectbox[0].set_value("offline").run()
+    app.radio[0].set_value("论文检索").run()
+
+    assert len(app.exception) == 0
+    assert "检索内容" in [text.label for text in app.text_input]
+    assert "搜索论文" in [button.label for button in app.button]
+    assert len(app.file_uploader) == 0
+    assert len(app.tabs) == 0
+
+
 if __name__ == "__main__":
     test_offline_analysis_ui()
     test_library_workspace()
+    test_academic_search_is_independent_workspace()
     print("streamlit UI tests passed")
