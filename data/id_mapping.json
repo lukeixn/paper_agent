@@ -83,6 +83,24 @@
     ]
   },
   "7": {
+    "title": "KV Cache Compression, But What Must We Give in Return? A Comprehensive Benchmark of Long Context Capable Approaches",
+    "json_file": "KV Cache Compression, But What Must We Give in Return_ A Comprehensive Benchmark of Long Context Capable Approaches.json",
+    "authors": [
+      "Jiayi Yuan",
+      "Hongyi Liu",
+      "Shaochen (Henry) Zhong",
+      "Yu-Neng Chuang",
+      "Songchen Li",
+      "Guanchu Wang",
+      "Duy Le",
+      "Hongye Jin",
+      "Vipin Chaudhary",
+      "Zhaozhuo Xu",
+      "Zirui Liu",
+      "Xia Hu"
+    ]
+  },
+  "8": {
     "title": "Learning Streaming Video Representation via Multitask Training",
     "json_file": "Learning Streaming Video Representation via Multitask Training.json",
     "authors": [
@@ -97,7 +115,7 @@
       "Weidi Xie"
     ]
   },
-  "8": {
+  "9": {
     "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
     "json_file": "Mamba_ Linear-Time Sequence Modeling with Selective State Spaces.json",
     "authors": [
@@ -105,7 +123,7 @@
       "Tri Dao"
     ]
   },
-  "9": {
+  "10": {
     "title": "Mask R-CNN",
     "json_file": "Mask R-CNN.json",
     "authors": [
@@ -115,7 +133,7 @@
       "Ross Girshick"
     ]
   },
-  "10": {
+  "11": {
     "title": "MemoryMamba: Memory-Augmented State Space Model for Defect Recognition",
     "json_file": "MemoryMamba_ Memory-Augmented State Space Model for Defect Recognition.json",
     "authors": [
@@ -124,7 +142,7 @@
       "Yucheng Zhou"
     ]
   },
-  "11": {
+  "12": {
     "title": "MeMViT: Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition",
     "json_file": "MeMViT_ Memory-Augmented Multiscale Vision Transformer for Efficient Long-Term Video Recognition.json",
     "authors": [
@@ -137,7 +155,7 @@
       "Christoph Feichtenhofer"
     ]
   },
-  "12": {
+  "13": {
     "title": "Per-Pixel Classification is Not All You Need for Semantic Segmentation",
     "json_file": "Per-Pixel Classification is Not All You Need for Semantic Segmentation.json",
     "authors": [
@@ -146,7 +164,7 @@
       "Alexander Kirillov"
     ]
   },
-  "13": {
+  "14": {
     "title": "REOrdering Patches Improves Vision Models",
     "json_file": "REOrdering Patches Improves Vision Models.json",
     "authors": [
@@ -157,7 +175,7 @@
       "Ritwik Gupta"
     ]
   },
-  "14": {
+  "15": {
     "title": "Streaming Video over the Internet: Approaches and Directions",
     "json_file": "Streaming Video over the Internet_ Approaches and Directions.json",
     "authors": [
@@ -168,7 +186,7 @@
       "Jon M. Peha"
     ]
   },
-  "15": {
+  "16": {
     "title": "StreamingVLM: Real-Time Understanding for Infinite Video Streams",
     "json_file": "StreamingVLM_ Real-Time Understanding for Infinite Video Streams.json",
     "authors": [
@@ -181,7 +199,7 @@
       "Song Han"
     ]
   },
-  "16": {
+  "17": {
     "title": "StreamMem: Query-Agnostic KV Cache Memory for Streaming Video Understanding",
     "json_file": "StreamMem_ Query-Agnostic KV Cache Memory for Streaming Video Understanding.json",
     "authors": [
@@ -194,7 +212,7 @@
       "Mengye Ren"
     ]
   },
-  "17": {
+  "18": {
     "title": "VAMBA: Understanding Hour-Long Videos with Hybrid Mamba-Transformers",
     "json_file": "VAMBA_ Understanding Hour-Long Videos with Hybrid Mamba-Transformers.json",
     "authors": [
@@ -206,7 +224,7 @@
       "Wenhu Chen"
     ]
   },
-  "18": {
+  "19": {
     "title": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding",
     "json_file": "Video Mamba Suite_ State Space Model as a Versatile Alternative for Video Understanding.json",
     "authors": [
@@ -222,7 +240,7 @@
       "Limin Wang"
     ]
   },
-  "19": {
+  "20": {
     "title": "VL-CACHE: SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION",
     "json_file": "VL-CACHE_ SPARSITY AND MODALITY-AWARE KV CACHE COMPRESSION FOR VISION-LANGUAGE MODEL INFERENCE ACCELERATION.json",
     "authors": [
@@ -232,7 +250,7 @@
       "Panpan Xu"
     ]
   },
-  "20": {
+  "21": {
     "title": "∞-VIDEO: A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation",
     "json_file": "∞-VIDEO_ A Training-Free Approach to Long Video Understanding via Continuous-Time Memory Consolidation.json",
     "authors": [
@@ -242,7 +260,7 @@
       "André F. T. Martins"
     ]
   },
-  "21": {
+  "22": {
     "title": "论文的题目",
     "json_file": "论文的题目.json",
     "authors": [
