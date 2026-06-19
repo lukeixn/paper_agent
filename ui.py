@@ -177,9 +177,14 @@ def render_result(state: dict[str, Any]) -> None:
     tabs = st.tabs(["概览", "论文", "Agent 分析", "完整报告"])
     with tabs[0]:
         st.subheader("执行路径")
-        st.write(" → ".join(["检索", "路由", *[
-            AGENT_LABELS.get(name, name) for name in selected_agents
-        ], "汇总"]))
+        st.write("检索 → 路由 → 并行 Agent → ReportAgent")
+        if selected_agents:
+            st.markdown(
+                "\n".join(
+                    f"- {AGENT_LABELS.get(name, name)}"
+                    for name in selected_agents
+                )
+            )
         reason = state.get("global_context", {}).get("route_reason")
         if reason:
             st.caption(reason)

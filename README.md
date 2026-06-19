@@ -37,15 +37,19 @@ D:\py\Anaconda3\envs\py311\python.exe main.py "Mamba 在长视频理解中的优
 START
   -> retrieve
   -> route
-  -> survey_agent
-  -> innovation_agent
-  -> method_agent
-  -> limitation_agent
-  -> aggregate
+  -> [并行分支]
+       survey_agent
+       innovation_agent
+       method_agent
+       limitation_agent
+  -> report_agent
   -> END
 ```
 
-Router 会根据问题选择实际需要执行的 Agent。未选中的 Agent 节点会直接跳过。
+Router 会根据问题选择实际需要执行的 Agent，并通过 LangGraph `Send`
+并行分发。每个 Agent 只收到用户问题、检索论文、模型配置和自身名称，
+无法读取其他 Agent 的上下文或输出。全部分支完成后由 `ReportAgent`
+统一汇总。
 
 ## 主要文件
 
