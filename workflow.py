@@ -53,6 +53,9 @@ def make_agent_node(agent_name: str) -> AgentNode:
 
 def aggregate_node(state: MainState) -> MainState:
     state["final_report"] = ReportAggregator().build_report(state)
+    model_config = state.get("global_context", {}).get("model_config")
+    if isinstance(model_config, dict):
+        model_config["api_key"] = ""
     return state
 
 
@@ -89,21 +92,37 @@ def build_workflow():
     return graph.compile()
 
 
-def run_graph_pipeline(query: str, top_k: int = 5, data_dir: str = "data") -> str:
+def create_pipeline_state(
+    query: str,
+    top_k: int = 5,
+    data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
+) -> MainState:
     state = create_state(query)
     state["global_context"]["top_k"] = top_k
     state["global_context"]["data_dir"] = data_dir
+    state["global_context"]["model_config"] = model_config or {}
+    return state
 
+
+def run_graph_state(
+    query: str,
+    top_k: int = 5,
+    data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
+) -> MainState:
+    state = create_pipeline_state(query, top_k, data_dir, model_config)
     app = build_workflow()
-    result: MainState = app.invoke(state)
-    return result.get("final_report", "")
+    return app.invoke(state)
 
 
-def run_compatible_pipeline(query: str, top_k: int = 5, data_dir: str = "data") -> str:
-    state = create_state(query)
-    state["global_context"]["top_k"] = top_k
-    state["global_context"]["data_dir"] = data_dir
-
+def run_compatible_state(
+    query: str,
+    top_k: int = 5,
+    data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
+) -> MainState:
+    state = create_pipeline_state(query, top_k, data_dir, model_config)
     for node in [
         retrieve_node,
         route_node,
@@ -115,25 +134,44 @@ def run_compatible_pipeline(query: str, top_k: int = 5, data_dir: str = "data") 
     ]:
         state = node(state)
 
-    return state.get("final_report", "")
+    return state
 
 
-def run_pipeline(
+def run_pipeline_state(
     query: str,
     top_k: int = 5,
     data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
     *,
     require_langgraph: bool = False,
-) -> str:
+) -> MainState:
     if langgraph_available():
-        return run_graph_pipeline(query, top_k=top_k, data_dir=data_dir)
+        return run_graph_state(query, top_k, data_dir, model_config)
 
     if require_langgraph:
         raise RuntimeError(
             "LangGraph is not installed in this environment. Install requirements.txt and rerun."
         )
 
-    return run_compatible_pipeline(query, top_k=top_k, data_dir=data_dir)
+    return run_compatible_state(query, top_k, data_dir, model_config)
+
+
+def run_pipeline(
+    query: str,
+    top_k: int = 5,
+    data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
+    *,
+    require_langgraph: bool = False,
+) -> str:
+    state = run_pipeline_state(
+        query,
+        top_k=top_k,
+        data_dir=data_dir,
+        model_config=model_config,
+        require_langgraph=require_langgraph,
+    )
+    return state.get("final_report", "")
 
 
 def workflow_info() -> dict[str, Any]:

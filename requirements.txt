@@ -12,3 +12,4 @@ langchain-core
 sentence-transformers
 faiss-cpu
 langgraph
+streamlit>=1.40

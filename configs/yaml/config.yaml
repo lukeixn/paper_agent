@@ -1,4 +1,4 @@
-# config/config.yaml
+# Runtime API keys should be provided by the UI or environment variables.
 
 MODEL:
   PROVIDER: deepseek   # offline / openai / deepseek
@@ -18,4 +18,4 @@ AGENT:
   MAX_STEPS: 5
 
 SEARCH:
-  MAX_RESULTS: 3
+  MAX_RESULTS: 10

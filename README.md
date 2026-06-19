@@ -1,55 +1,54 @@
 # Paper Agent
 
-一个面向论文库的多 Agent 原型：根据用户问题检索相关论文，然后通过 LangGraph 路由到多个分析 Agent，最后汇总成报告。
+一个基于 LangGraph 的论文研究助手：从本地论文库检索材料，路由到多个分析 Agent，并汇总为结构化报告。
 
-## 当前能力
+## UI 启动
 
-- 从 `data/*.json` 加载已有论文结构化数据。
-- 本地离线检索，不依赖 FAISS 或 embedding 模型也能运行主流程。
-- LangGraph 工作流组织 `retrieve -> route -> agents -> aggregate`。
-- Router 根据问题意图选择综述、创新点、方法路线、局限机会等 Agent。
-- 多 Agent 输出统一汇总为 Markdown 报告。
-- 配置在线 LLM 后，Agent 会优先使用大模型生成更强的分析。
+使用项目的 `py311` Conda 环境：
 
-## 快速运行
-
-```bash
-python main.py "视频理解方向最近有哪些值得关注的创新？" --top-k 5
+```powershell
+D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py
 ```
 
-强制检查 LangGraph：
+浏览器打开 `http://localhost:8501`。API Key 在侧边栏输入，只保存在当前 UI 会话中，不会写入配置文件。
 
-```bash
-python main.py "视频理解方向最近有哪些值得关注的创新？" --require-langgraph
+## 命令行
+
+```powershell
+D:\py\Anaconda3\envs\py311\python.exe main.py "Mamba 在长视频理解中的优势和局限" --top-k 10 --require-langgraph
 ```
 
-保存报告：
+## 工作流
 
-```bash
-python main.py "Mamba 在长视频理解里的优势和局限" --top-k 5 --output reports/mamba_video.md
+```text
+START
+  -> retrieve
+  -> route
+  -> survey_agent
+  -> innovation_agent
+  -> method_agent
+  -> limitation_agent
+  -> aggregate
+  -> END
 ```
 
-## 在线 LLM
+Router 会根据问题选择实际需要执行的 Agent。未选中的 Agent 节点会直接跳过。
 
-默认使用 DeepSeek 模式。要使用 DeepSeek 或 OpenAI：
+## 主要文件
 
-1. 在 `configs/yaml/config.yaml` 里确认 `MODEL.PROVIDER` 是 `deepseek` 或 `openai`。
-2. 设置环境变量：
+- `ui.py`：Streamlit 用户界面。
+- `workflow.py`：LangGraph 工作流。
+- `agent/agent.py`：多 Agent 实现。
+- `vector_store/search.py`：本地论文检索。
+- `aggregator.py`：报告汇总。
+- `state/state.py`：共享状态定义。
+- `paper_parser.py`：PDF 解析和论文数据生成。
 
-```bash
-set DEEPSEEK_API_KEY=你的key
-set OPENAI_API_KEY=你的key
+## 安全配置
+
+不要将真实 API Key 写入 `configs/yaml/config.yaml`。可通过 UI 输入，也可设置环境变量：
+
+```powershell
+$env:DEEPSEEK_API_KEY="..."
+$env:OPENAI_API_KEY="..."
 ```
-
-不要把真实 key 写进配置文件。
-
-## 主要目录
-
-- `main.py`: 主流程入口。
-- `workflow.py`: LangGraph 工作流定义。
-- `vector_store/search.py`: 本地论文检索。
-- `router.py`: 问题路由。
-- `agent/agent.py`: 多 Agent 实现。
-- `aggregator.py`: 报告汇总。
-- `state/state.py`: 主状态结构。
-- `paper_parser.py`: PDF 到 JSON 的解析工具。

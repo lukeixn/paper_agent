@@ -14,7 +14,6 @@ class BaseAgent(ABC):
 
     def __init__(self, profile_path: str | None = None):
         self.profile_path = profile_path
-        self.llm = get_llm()
         self.profile = self.load_profile()
 
     def load_profile(self) -> str:
@@ -58,7 +57,15 @@ class BaseAgent(ABC):
         return "\n\n".join(blocks)
 
     def maybe_llm(self, instruction: str, state: MainState) -> str | None:
-        if isinstance(self.llm, OfflineLLM):
+        model_config = state.get("global_context", {}).get("model_config", {})
+        llm = get_llm(
+            provider=model_config.get("provider"),
+            api_key=model_config.get("api_key"),
+            model_name=model_config.get("model_name"),
+            base_url=model_config.get("base_url"),
+            temperature=model_config.get("temperature"),
+        )
+        if isinstance(llm, OfflineLLM):
             return None
 
         papers = state.get("retrieved_papers", [])
@@ -74,7 +81,7 @@ class BaseAgent(ABC):
 任务:
 {instruction}
 """
-        return self.llm.invoke(prompt).content
+        return llm.invoke(prompt).content
 
 
 class SurveyAgent(BaseAgent):
