@@ -15,7 +15,7 @@ def parse_args() -> argparse.Namespace:
         description="Paper Agent: retrieve papers and run multi-agent analysis.",
     )
     parser.add_argument("query", nargs="*", help="用户问题")
-    parser.add_argument("--top-k", type=int, default=5, help="检索论文数量")
+    parser.add_argument("--top-k", type=int, default=10, help="检索论文数量")
     parser.add_argument("--data-dir", default="data", help="论文 JSON 数据目录")
     parser.add_argument("--output", default="", help="可选：报告保存路径")
     parser.add_argument(
