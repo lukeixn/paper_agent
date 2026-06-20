@@ -1,37 +1,43 @@
 # Paper Agent
 
-一个基于 LangGraph 的论文研究助手：从本地论文库检索材料，路由到多个分析 Agent，并汇总为结构化报告。
+一个基于 LangGraph 的论文研究助手，支持本地知识库分析、在线论文检索、
+本地 PDF 导入和多 Agent 并行研究报告生成。
 
 ## UI 启动
 
-使用项目的 `py311` Conda 环境：
+双击项目根目录的 `start_ui.bat`，然后访问：
 
-```powershell
-D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py
+```text
+http://localhost:8502
 ```
 
-浏览器打开 `http://localhost:8501`。API Key 在侧边栏输入，只保存在当前 UI 会话中，不会写入配置文件。
-
-也可以直接双击项目根目录的 `start_ui.bat`，新版界面会运行在
-`http://localhost:8502`。使用期间请保持启动窗口开启。
-
-UI 包含三个工作区：
-
-- **研究分析**：检索论文并通过 LangGraph 调度多个 Agent。
-- **论文检索**：用户主动发起搜索，从 OpenAlex 获取最多 100 篇开放
-  获取候选，经 DeepSeek/OpenAI 重排后，由用户手动选择最多 10 篇导入。
-- **论文数据库**：只负责查看已有论文和上传本地 PDF，自动解析并重建
-  FAISS。
-
-说明：项目不会自动抓取明确禁止爬虫访问的网站，也不会绕过验证码、登录或下载限制。
-
-## 命令行
+也可以直接运行：
 
 ```powershell
-D:\py\Anaconda3\envs\py311\python.exe main.py "Mamba 在长视频理解中的优势和局限" --top-k 10 --require-langgraph
+D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py --server.port 8502
 ```
 
-## 工作流
+## 三个工作区
+
+- **研究分析**：只检索本地论文库，通过 LangGraph 并行执行专业 Agent。
+- **论文检索**
+  - 在线搜索：从 OpenAlex 获取候选，AI 排序后手动选择导入。
+  - 本地 PDF 导入：用于已经从登录网站手动下载的论文。
+- **论文数据库**：查看已有论文、来源和 FAISS 索引状态。
+
+## PDF 全文解析
+
+PDF 导入不再只截取开头内容。当前流程为：
+
+1. 读取 PDF 的所有可提取文本页面。
+2. 按页面顺序分块，确保全部内容被覆盖。
+3. 每个文本块独立提取方法、结果、贡献和局限。
+4. 汇总所有分块笔记，生成最终结构化论文信息。
+5. 生成 embedding 并重建 FAISS。
+
+扫描版 PDF 如果没有文本层，当前版本会提示无法提取文本；后续可增加 OCR。
+
+## LangGraph 工作流
 
 ```text
 START
@@ -46,24 +52,12 @@ START
   -> END
 ```
 
-Router 会根据问题选择实际需要执行的 Agent，并通过 LangGraph `Send`
-并行分发。每个 Agent 只收到用户问题、检索论文、模型配置和自身名称，
-无法读取其他 Agent 的上下文或输出。全部分支完成后由 `ReportAgent`
-统一汇总。
-
-## 主要文件
-
-- `ui.py`：Streamlit 用户界面。
-- `workflow.py`：LangGraph 工作流。
-- `agent/agent.py`：多 Agent 实现。
-- `vector_store/search.py`：本地论文检索。
-- `aggregator.py`：报告汇总。
-- `state/state.py`：共享状态定义。
-- `paper_parser.py`：PDF 解析和论文数据生成。
+专业 Agent 仅接收用户问题、检索论文、模型配置和自身任务，无法读取其他
+Agent 的上下文或输出。所有分支结束后由 `ReportAgent` 汇总。
 
 ## 安全配置
 
-不要将真实 API Key 写入 `configs/yaml/config.yaml`。可通过 UI 输入，也可设置环境变量：
+不要将真实 API Key 写入 `configs/yaml/config.yaml`。可通过 UI 输入，或设置：
 
 ```powershell
 $env:DEEPSEEK_API_KEY="..."

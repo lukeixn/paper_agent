@@ -235,15 +235,15 @@ def has_online_credentials(settings: dict[str, Any]) -> bool:
     return bool(settings["api_key"] or os.getenv(environment_key))
 
 
-def render_academic_search(settings: dict[str, Any]) -> None:
-    library = PaperLibrary()
-
-    st.header("论文检索")
+def render_online_academic_search(
+    settings: dict[str, Any],
+    library: PaperLibrary,
+) -> None:
+    st.subheader("在线搜索")
     st.caption(
-        "主动搜索开放获取论文。系统浏览最多 100 篇候选并进行 AI 排名，"
-        "由你手动选择最多 10 篇加入本地论文库。"
+        "从开放学术数据源搜索最多 100 篇候选，经 AI 排名后由你手动选择"
+        "最多 10 篇加入论文库。"
     )
-
     scholar_query = st.text_input(
         "检索内容",
         placeholder="例如：long video understanding memory",
@@ -406,12 +406,97 @@ def render_academic_search(settings: dict[str, Any]) -> None:
             st.error(f"所选论文导入失败：{exc}")
 
 
+def render_local_pdf_import(
+    settings: dict[str, Any],
+    library: PaperLibrary,
+) -> None:
+    st.subheader("本地 PDF 导入")
+    st.caption(
+        "适用于需要登录后手动下载的论文。上传后会解析整篇 PDF 的全部页面，"
+        "生成结构化信息与向量，并重建 FAISS 索引。"
+    )
+    uploaded_files = st.file_uploader(
+        "选择本地 PDF",
+        type=["pdf"],
+        accept_multiple_files=True,
+        key="local_pdf_uploader",
+        help="支持一次上传多篇论文。全文会分块解析，不再只读取开头部分。",
+    )
+    overwrite = st.checkbox(
+        "覆盖同名论文",
+        value=False,
+        key="local_pdf_overwrite",
+    )
+
+    if settings["provider"] == "offline":
+        st.info("全文解析需要在线 LLM，请选择 DeepSeek 或 OpenAI。")
+    elif not has_online_credentials(settings):
+        st.info("请在侧边栏输入 API Key 后再导入。")
+
+    import_clicked = st.button(
+        "解析全文并加入论文库",
+        key="local_pdf_import_button",
+        type="primary",
+        disabled=not uploaded_files,
+        width="stretch",
+    )
+    if not import_clicked:
+        return
+    if not has_online_credentials(settings):
+        st.warning("导入论文需要可用的在线模型和 API Key。")
+        return
+
+    try:
+        with st.status("正在分块解析 PDF 全文…", expanded=True) as status:
+            st.write(f"准备解析 {len(uploaded_files)} 篇论文")
+            results, index_result = library.import_many(
+                uploaded_files,
+                model_config=runtime_model_config(settings),
+                overwrite=overwrite,
+            )
+            for result in results:
+                prefix = "完成" if result.success else "失败"
+                st.write(f"{prefix}：{result.title or result.filename}")
+            status.update(
+                label="本地论文处理完成",
+                state="complete",
+                expanded=True,
+            )
+
+        successful = [result for result in results if result.success]
+        failed = [result for result in results if not result.success]
+        if successful:
+            st.success(f"成功加入 {len(successful)} 篇论文。")
+        for result in failed:
+            st.error(f"{result.filename}：{result.message}")
+        if index_result:
+            st.caption(
+                "FAISS 已重建："
+                f"{index_result['paper_count']} 篇，"
+                f"{index_result['dimension']} 维。"
+            )
+    except Exception as exc:
+        st.error(f"本地论文导入失败：{exc}")
+
+
+def render_academic_search(settings: dict[str, Any]) -> None:
+    library = PaperLibrary()
+    st.header("论文检索")
+    st.caption("在线寻找论文，或将已经下载到本地的 PDF 手动加入论文库。")
+    online_tab, local_tab = st.tabs(["在线搜索", "本地 PDF 导入"])
+    with online_tab:
+        render_online_academic_search(settings, library)
+    with local_tab:
+        render_local_pdf_import(settings, library)
+
+
 def render_library(settings: dict[str, Any]) -> None:
+    del settings
     library = PaperLibrary()
     stats = library.stats()
 
     st.header("论文数据库")
-    st.caption("查看当前论文库，上传 PDF 并自动解析、生成向量和重建 FAISS 索引。")
+    st.caption("查看当前论文库、论文来源和 FAISS 索引状态。")
 
     columns = st.columns(3)
     columns[0].metric("论文数量", stats["paper_count"])
@@ -424,139 +509,69 @@ def render_library(settings: dict[str, Any]) -> None:
         "可用" if stats["index_exists"] and stats["mapping_exists"] else "未建立",
     )
 
-    upload_tab, database_tab = st.tabs(["上传 PDF", "当前论文"])
-
-    with upload_tab:
-        uploaded_files = st.file_uploader(
-            "选择 PDF",
-            type=["pdf"],
-            accept_multiple_files=True,
-            help="支持一次上传多篇论文。每篇论文会调用当前侧边栏配置的 LLM。",
-        )
-        overwrite = st.checkbox(
-            "覆盖同名论文",
-            value=False,
-            help="启用后允许覆盖已有 PDF 和同标题 JSON 数据。",
-        )
-
-        if settings["provider"] == "offline":
-            st.info("PDF 解析需要在线 LLM，请在侧边栏选择 DeepSeek 或 OpenAI。")
-        elif not has_online_credentials(settings):
-            st.info("请在侧边栏输入 API Key 后再导入论文。")
-
-        import_clicked = st.button(
-            "解析并加入论文库",
-            type="primary",
-            disabled=not uploaded_files,
-            width="stretch",
-        )
-        if import_clicked:
-            if not has_online_credentials(settings):
-                st.warning("导入论文需要可用的在线模型和 API Key。")
-            else:
-                try:
-                    with st.status("正在处理 PDF…", expanded=True) as status:
-                        st.write(f"准备解析 {len(uploaded_files)} 篇论文")
-                        results, index_result = library.import_many(
-                            uploaded_files,
-                            model_config=runtime_model_config(settings),
-                            overwrite=overwrite,
-                        )
-                        for result in results:
-                            if result.success:
-                                st.write(f"完成：{result.title}")
-                            else:
-                                st.write(
-                                    f"失败：{result.filename} - {result.message}"
-                                )
-                        status.update(
-                            label="论文库更新完成",
-                            state="complete",
-                            expanded=True,
-                        )
-
-                    successful = [
-                        result for result in results if result.success
-                    ]
-                    failed = [result for result in results if not result.success]
-                    if successful:
-                        st.success(f"成功加入 {len(successful)} 篇论文。")
-                    for result in failed:
-                        st.error(f"{result.filename}：{result.message}")
-                    if index_result:
-                        st.caption(
-                            "FAISS 已重建："
-                            f"{index_result['paper_count']} 篇，"
-                            f"{index_result['dimension']} 维。"
-                        )
-                    st.session_state["library_updated"] = True
-                except Exception as exc:
-                    st.error(f"论文导入未能启动：{exc}")
-
-    with database_tab:
-        papers = library.list_papers()
-        search_text = st.text_input(
-            "筛选论文",
-            placeholder="输入标题、作者或关键词",
-        ).strip().lower()
-        if search_text:
-            papers = [
-                paper
-                for paper in papers
-                if search_text
-                in " ".join(
-                    [
-                        paper.title,
-                        " ".join(paper.authors),
-                        " ".join(paper.keywords),
-                    ]
-                ).lower()
-            ]
-
-        rows = [
-            {
-                "标题": paper.title,
-                "作者": "、".join(paper.authors[:4]),
-                "关键词": "、".join(paper.keywords[:6]),
-                "向量维度": len(paper.embedding),
-                "来源": paper.discovery_source or "本地导入",
-                "原始页面": paper.source_url,
-            }
+    papers = library.list_papers()
+    search_text = st.text_input(
+        "筛选论文",
+        placeholder="输入标题、作者或关键词",
+    ).strip().lower()
+    if search_text:
+        papers = [
+            paper
             for paper in papers
+            if search_text
+            in " ".join(
+                [
+                    paper.title,
+                    " ".join(paper.authors),
+                    " ".join(paper.keywords),
+                ]
+            ).lower()
         ]
-        st.dataframe(
-            rows,
-            width="stretch",
-            hide_index=True,
-            column_config={
-                "标题": st.column_config.TextColumn(width="large"),
-                "作者": st.column_config.TextColumn(width="medium"),
-                "关键词": st.column_config.TextColumn(width="medium"),
-                "向量维度": st.column_config.NumberColumn(width="small"),
-                "来源": st.column_config.TextColumn(width="small"),
-                "原始页面": st.column_config.LinkColumn(width="small"),
-            },
-        )
 
-        with st.expander("论文详情"):
-            if papers:
-                selected_title = st.selectbox(
-                    "选择论文",
-                    [paper.title for paper in papers],
-                )
-                selected = next(
-                    paper for paper in papers if paper.title == selected_title
-                )
-                st.subheader(selected.title)
-                if selected.authors:
-                    st.caption("作者：" + "、".join(selected.authors))
-                st.write(selected.summary or selected.abstract or "暂无摘要。")
-                if selected.contributions:
-                    st.markdown("**主要贡献**")
-                    for contribution in selected.contributions:
-                        st.markdown(f"- {contribution}")
-            else:
-                st.info("当前筛选条件下没有论文。")
+    rows = [
+        {
+            "标题": paper.title,
+            "作者": "、".join(paper.authors[:4]),
+            "关键词": "、".join(paper.keywords[:6]),
+            "向量维度": len(paper.embedding),
+            "来源": paper.discovery_source or "本地导入",
+            "原始页面": paper.source_url,
+        }
+        for paper in papers
+    ]
+    st.dataframe(
+        rows,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "标题": st.column_config.TextColumn(width="large"),
+            "作者": st.column_config.TextColumn(width="medium"),
+            "关键词": st.column_config.TextColumn(width="medium"),
+            "向量维度": st.column_config.NumberColumn(width="small"),
+            "来源": st.column_config.TextColumn(width="small"),
+            "原始页面": st.column_config.LinkColumn(width="small"),
+        },
+    )
+
+    with st.expander("论文详情"):
+        if papers:
+            selected_title = st.selectbox(
+                "选择论文",
+                [paper.title for paper in papers],
+            )
+            selected = next(
+                paper for paper in papers if paper.title == selected_title
+            )
+            st.subheader(selected.title)
+            if selected.authors:
+                st.caption("作者：" + "、".join(selected.authors))
+            st.write(selected.summary or selected.abstract or "暂无摘要。")
+            if selected.contributions:
+                st.markdown("**主要贡献**")
+                for contribution in selected.contributions:
+                    st.markdown(f"- {contribution}")
+        else:
+            st.info("当前筛选条件下没有论文。")
 
 
 def main() -> None:

@@ -34,36 +34,43 @@ def test_offline_analysis_ui() -> None:
     assert state["global_context"]["model_config"]["api_key"] == ""
 
 
-def test_library_workspace() -> None:
+def test_library_workspace_is_read_only_management() -> None:
     app = AppTest.from_file("ui.py", default_timeout=90)
     app.run()
     app.selectbox[0].set_value("offline").run()
     app.radio[0].set_value("论文数据库").run()
 
     assert len(app.exception) == 0
-    assert [tab.label for tab in app.tabs] == ["上传 PDF", "当前论文"]
-    assert [uploader.label for uploader in app.file_uploader] == ["选择 PDF"]
-    assert "检索内容" not in [text.label for text in app.text_input]
+    assert len(app.file_uploader) == 0
+    assert len(app.tabs) == 0
     metrics = {metric.label: metric.value for metric in app.metric}
     assert int(metrics["论文数量"]) > 0
     assert metrics["FAISS 索引"] == "可用"
 
 
-def test_academic_search_is_independent_workspace() -> None:
+def test_search_workspace_contains_online_and_local_import() -> None:
     app = AppTest.from_file("ui.py", default_timeout=90)
     app.run()
     app.selectbox[0].set_value("offline").run()
     app.radio[0].set_value("论文检索").run()
 
     assert len(app.exception) == 0
+    assert [tab.label for tab in app.tabs] == [
+        "在线搜索",
+        "本地 PDF 导入",
+    ]
     assert "检索内容" in [text.label for text in app.text_input]
     assert "搜索论文" in [button.label for button in app.button]
-    assert len(app.file_uploader) == 0
-    assert len(app.tabs) == 0
+    assert [uploader.label for uploader in app.file_uploader] == [
+        "选择本地 PDF"
+    ]
+    assert "解析全文并加入论文库" in [
+        button.label for button in app.button
+    ]
 
 
 if __name__ == "__main__":
     test_offline_analysis_ui()
-    test_library_workspace()
-    test_academic_search_is_independent_workspace()
+    test_library_workspace_is_read_only_management()
+    test_search_workspace_contains_online_and_local_import()
     print("streamlit UI tests passed")

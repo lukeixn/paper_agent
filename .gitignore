@@ -12,3 +12,4 @@ env/
 reports/mamba_langgraph.md
 streamlit-ui.log
 streamlit-ui.err.log
+.codex-presentations/
