@@ -131,10 +131,44 @@ def test_external_skill_can_override_builtin_skill() -> None:
         assert effective[0].source == "external"
 
 
+def test_all_agents_have_builtin_skills() -> None:
+    library = AgentSkillLibrary()
+    skills = library.list_builtin()
+
+    assert {
+        (skill.agent_name, skill.filename)
+        for skill in skills
+    } == {
+        ("survey_agent", "survey.md"),
+        ("innovation_agent", "innovation.md"),
+        ("method_agent", "method.md"),
+        ("limitation_agent", "limitation.md"),
+    }
+    for skill in skills:
+        assert len(skill.content) > 300
+        assert skill.source == "builtin"
+        assert library.get_installed(
+            skill.agent_name,
+            skill.filename,
+            "builtin",
+        ) == skill
+    assert library.get_installed(
+        "innovation_agent",
+        "../innovation.md",
+        "builtin",
+    ) is not None
+    assert library.get_installed(
+        "innovation_agent",
+        "missing.md",
+        "builtin",
+    ) is None
+
+
 if __name__ == "__main__":
     test_skills_are_isolated_by_agent()
     test_skill_filename_is_sanitized()
     test_agent_loads_its_external_skills()
     test_builtin_innovation_skill_is_listed()
     test_external_skill_can_override_builtin_skill()
+    test_all_agents_have_builtin_skills()
     print("skill library tests passed")

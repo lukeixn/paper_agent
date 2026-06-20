@@ -6,6 +6,7 @@ import inspect
 import json
 import os
 from typing import Any
+from urllib.parse import urlencode
 
 import streamlit as st
 
@@ -1369,6 +1370,7 @@ def render_agent_skills() -> None:
                     )
                     else "生效中"
                 ),
+                "打开": skill_view_url(skill),
                 "字符数": len(skill.content),
                 "保存位置": str(skill.path),
             }
@@ -1381,6 +1383,10 @@ def render_agent_skills() -> None:
             "文件": st.column_config.TextColumn(width="medium"),
             "来源": st.column_config.TextColumn(width="small"),
             "状态": st.column_config.TextColumn(width="medium"),
+            "打开": st.column_config.LinkColumn(
+                display_text="打开",
+                width="small",
+            ),
             "字符数": st.column_config.NumberColumn(width="small"),
             "保存位置": st.column_config.TextColumn(width="large"),
         },
@@ -1400,6 +1406,47 @@ def render_agent_skills() -> None:
                 if skill.filename == selected_filename
             )
             st.markdown(selected_skill.content)
+
+
+def skill_view_url(skill) -> str:
+    return "?" + urlencode(
+        {
+            "skill_agent": skill.agent_name,
+            "skill_file": skill.filename,
+            "skill_source": skill.source,
+        }
+    )
+
+
+def requested_skill(library: AgentSkillLibrary):
+    agent_name = st.query_params.get("skill_agent")
+    filename = st.query_params.get("skill_file")
+    source = st.query_params.get("skill_source")
+    if not all([agent_name, filename, source]):
+        return None
+    try:
+        return library.get_installed(
+            str(agent_name),
+            str(filename),
+            str(source),
+        )
+    except ValueError:
+        return None
+
+
+def render_skill_viewer(skill) -> None:
+    source_label = "内置 Skill" if skill.source == "builtin" else "外部 Skill"
+    st.caption(
+        f"{AGENT_LABELS[skill.agent_name]} · {source_label} · {skill.filename}"
+    )
+    st.header(skill.filename)
+    st.markdown(skill.content)
+    st.divider()
+    st.link_button(
+        "返回 Agent Skills",
+        "?",
+        width="stretch",
+    )
 
 
 def main() -> None:
@@ -1436,6 +1483,18 @@ def main() -> None:
         f'<div class="status-line"><span class="status-dot"></span>{graph_status}</div>',
         unsafe_allow_html=True,
     )
+
+    skill = requested_skill(AgentSkillLibrary())
+    if skill is not None:
+        render_skill_viewer(skill)
+        return
+    if any(
+        key in st.query_params
+        for key in ["skill_agent", "skill_file", "skill_source"]
+    ):
+        st.error("Skill 链接无效或文件已不存在。")
+        st.link_button("返回 Agent Skills", "?", width="stretch")
+        return
 
     if workspace == "论文数据库":
         render_library(settings)

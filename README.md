@@ -46,7 +46,15 @@ agent_skills/
 ```
 
 每个 Agent 只会读取自己目录中的 Markdown。原有
-`profiles/innovation.md` 仍作为创新 Agent 的内置 profile 使用。
+`profiles/` 中包含四个 Agent 的内置 Skill：
+
+- `survey.md`
+- `innovation.md`
+- `method.md`
+- `limitation.md`
+
+UI 的 Skill 列表为每个内置或外部 Skill 提供“打开”链接，可进入只读
+Markdown 页面查看完整内容。
 
 如果上传文件与内置 Skill 同名，需要勾选“覆盖同名 Skill”。覆盖后只使用
 外部版本，内置版本不会同时进入提示词。删除对应的外部文件后，内置版本会

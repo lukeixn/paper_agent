@@ -126,9 +126,6 @@ class InnovationAgent(BaseAgent):
     name = "innovation_agent"
     title = "创新分析 Agent"
 
-    def __init__(self):
-        super().__init__("profiles/innovation.md")
-
     def run(self, task: AgentTaskState) -> str:
         result = self.maybe_llm(
             "分析核心创新、创新价值，以及与已有工作的差异。",

@@ -13,7 +13,10 @@ AGENT_NAMES = {
 }
 MAX_SKILL_BYTES = 1024 * 1024
 BUILTIN_SKILLS = {
+    "survey_agent": ["survey.md"],
     "innovation_agent": ["innovation.md"],
+    "method_agent": ["method.md"],
+    "limitation_agent": ["limitation.md"],
 }
 
 
@@ -134,6 +137,28 @@ class AgentSkillLibrary:
             if skill.filename not in external_names
         ]
         return builtin + external
+
+    def get_installed(
+        self,
+        agent_name: str,
+        filename: str,
+        source: str,
+    ) -> AgentSkill | None:
+        if source not in {"builtin", "external"}:
+            return None
+        skills = (
+            self.list_builtin(agent_name)
+            if source == "builtin"
+            else self.list(agent_name)
+        )
+        return next(
+            (
+                skill
+                for skill in skills
+                if skill.filename == Path(filename).name
+            ),
+            None,
+        )
 
     def combined_prompt(self, agent_name: str) -> str:
         sections = [

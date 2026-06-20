@@ -224,8 +224,38 @@ def test_agent_skills_workspace() -> None:
     assert "安装 Skill" in [button.label for button in app.button]
     assert len(app.dataframe) == 1
     skill_rows = app.dataframe[0].value
-    assert "innovation.md" in skill_rows["文件"].tolist()
-    assert "内置" in skill_rows["来源"].tolist()
+    assert set(skill_rows["文件"].tolist()) >= {
+        "survey.md",
+        "innovation.md",
+        "method.md",
+        "limitation.md",
+    }
+    assert set(skill_rows["来源"].tolist()) == {"内置"}
+    assert all(
+        url.startswith("?skill_agent=")
+        for url in skill_rows["打开"].tolist()
+    )
+
+
+def test_builtin_skill_open_link() -> None:
+    app = AppTest.from_file("ui.py", default_timeout=90)
+    app.query_params.update(
+        {
+            "skill_agent": "method_agent",
+            "skill_file": "method.md",
+            "skill_source": "builtin",
+        }
+    )
+    app.run()
+
+    assert len(app.exception) == 0
+    assert "method.md" in [header.value for header in app.header]
+    page_text = "\n".join(
+        item.value for item in app.markdown
+    )
+    assert "研究方法与系统实现专家" in page_text
+    assert "核心模块与信息流" in page_text
+    assert len(app.get("link_button")) == 1
 
 
 if __name__ == "__main__":
@@ -238,4 +268,5 @@ if __name__ == "__main__":
     test_library_workspace_is_read_only_management()
     test_search_workspace_contains_online_and_local_import()
     test_agent_skills_workspace()
+    test_builtin_skill_open_link()
     print("streamlit UI tests passed")
