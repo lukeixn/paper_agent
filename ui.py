@@ -37,6 +37,7 @@ TOPOLOGY_SVG_STYLE = """
 .topo-link.active{stroke:#5ab3ff;stroke-width:1.8;stroke-dasharray:7 6;filter:url(#topology-glow);animation:flow 1.1s linear infinite}
 .topo-link.branch,.topo-link.merge{marker-end:none}
 .topo-link.disabled{opacity:.15}
+.topo-link.error{stroke:#e16d91;opacity:.8}
 .topo-disc{fill:#102947;stroke:#426f9f;stroke-width:1.3}
 .topo-halo{fill:none;stroke:transparent;stroke-width:2}
 .topo-code,.topo-router-title,.topo-router-sub,.topo-label,.topo-agent-label{text-anchor:middle;dominant-baseline:middle;font-family:Consolas,"Microsoft YaHei",sans-serif}
@@ -155,16 +156,23 @@ def render_workflow_diagram(
         "active" if retrieve_status == "completed" else "pending"
     )
     route_line = "active" if route_status == "completed" else "pending"
-    agents_finished = bool(selected_agents) and all(
-        agent_status.get(name) in {"completed", "error"}
-        for name in selected_agents
-    )
-    report_line = "active" if agents_finished else "pending"
     agent_link_status = {
         name: (
             "disabled"
             if selected_set and name not in selected_set
             else route_line
+        )
+        for name in AGENT_LABELS
+    }
+    agent_merge_status = {
+        name: (
+            "disabled"
+            if selected_set and name not in selected_set
+            else "error"
+            if agent_status.get(name) == "error"
+            else "active"
+            if agent_status.get(name) == "completed"
+            else "pending"
         )
         for name in AGENT_LABELS
     }
@@ -259,13 +267,13 @@ def render_workflow_diagram(
 
                 {''.join(agent_nodes)}
 
-                <path class="topo-link merge {report_line}"
+                <path class="topo-link merge {agent_merge_status["survey_agent"]}"
                       d="M90 389 C110 472 168 478 190 505"></path>
-                <path class="topo-link merge {report_line}"
+                <path class="topo-link merge {agent_merge_status["innovation_agent"]}"
                       d="M170 439 C178 470 188 486 198 505"></path>
-                <path class="topo-link merge {report_line}"
+                <path class="topo-link merge {agent_merge_status["method_agent"]}"
                       d="M250 389 C245 454 232 483 220 505"></path>
-                <path class="topo-link merge {report_line}"
+                <path class="topo-link merge {agent_merge_status["limitation_agent"]}"
                       d="M330 439 C300 474 254 486 230 510"></path>
 
                 <g class="topo-report {report_status}">

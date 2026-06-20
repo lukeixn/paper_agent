@@ -4,6 +4,7 @@ import threading
 
 import workflow
 from agent.agent import AGENT_REGISTRY
+from router import Router
 from workflow import (
     contextualize_query_node,
     create_pipeline_state,
@@ -163,10 +164,25 @@ def test_stream_reports_each_parallel_agent() -> None:
     assert events[-1]["state"]["final_report"]
 
 
+def test_research_direction_question_uses_all_agents() -> None:
+    decision = Router().route(
+        "KV 缓存处理我该做哪个方向合适发论文？"
+    )
+
+    assert decision.route == "multi_agent"
+    assert decision.agents == [
+        "survey_agent",
+        "innovation_agent",
+        "method_agent",
+        "limitation_agent",
+    ]
+
+
 if __name__ == "__main__":
     test_workflow_info()
     test_pipeline_generates_report()
     test_parallel_agents_receive_isolated_context()
     test_follow_up_question_uses_conversation_context()
     test_stream_reports_each_parallel_agent()
+    test_research_direction_question_uses_all_agents()
     print("workflow tests passed")
