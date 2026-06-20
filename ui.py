@@ -476,9 +476,24 @@ def apply_styles() -> None:
             color: #147d64;
             font-weight: 650;
         }
-        .workflow-panel {
+        div[data-testid="stHorizontalBlock"]:has(.workflow-panel) {
+            align-items: flex-start;
+            overflow: visible;
+        }
+        div[data-testid="stColumn"]:has(.workflow-panel) {
             position: sticky;
-            top: 1rem;
+            top: 4rem;
+            z-index: 3;
+            align-self: flex-start;
+            height: fit-content;
+            overflow: visible;
+        }
+        div[data-testid="stColumn"]:has(.workflow-panel)
+        > div[data-testid="stVerticalBlock"] {
+            overflow: visible;
+        }
+        .workflow-panel {
+            position: relative;
             overflow: hidden;
             border: 1px solid #17375d;
             border-radius: 8px;
@@ -666,6 +681,15 @@ def apply_styles() -> None:
         @keyframes topology-pulse {
             0% { opacity: .75; transform: scale(.88); transform-origin: center; }
             100% { opacity: 0; transform: scale(1.18); transform-origin: center; }
+        }
+        @media (max-width: 900px) {
+            div[data-testid="stColumn"]:has(.workflow-panel) {
+                position: static;
+                top: auto;
+            }
+            .topology-image {
+                max-height: 34rem;
+            }
         }
         </style>
         """,
@@ -1364,8 +1388,9 @@ def main() -> None:
             st.rerun()
 
     if conversation.get("analysis_state"):
-        st.divider()
-        render_result(conversation["analysis_state"])
+        with chat_column:
+            st.divider()
+            render_result(conversation["analysis_state"])
 
 
 if __name__ == "__main__":

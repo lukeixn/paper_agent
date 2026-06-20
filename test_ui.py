@@ -58,6 +58,11 @@ def test_offline_analysis_ui() -> None:
     assert any(
         "实时执行图" in item.value for item in app.markdown
     )
+    assert any(
+        'stColumn"]:has(.workflow-panel)' in item.value
+        and "position: sticky" in item.value
+        for item in app.markdown
+    )
 
     app.selectbox[0].set_value("offline").run()
     app.radio[0].set_value("研究分析").run()
