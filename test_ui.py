@@ -35,7 +35,10 @@ def test_offline_analysis_ui() -> None:
 
     assert len(app.exception) == 0
     assert any(
-        "已找到" in item.value for item in app.markdown
+        "topology-map" in item.value
+        and "ROUTER" in item.value
+        and "PARALLEL AGENTS" in item.value
+        for item in app.markdown
     )
     assert [tab.label for tab in app.tabs] == [
         "概览",

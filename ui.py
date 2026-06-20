@@ -42,29 +42,16 @@ def current_workflow():
     return workflow
 
 
-def _node_html(
-    code: str,
-    title: str,
-    detail: str,
+def _topology_status(
     status: str,
 ) -> str:
-    status_labels = {
-        "pending": "WAIT",
-        "running": "LIVE",
-        "completed": "DONE",
-        "error": "ERR",
-        "disabled": "SKIP",
-    }
-    return (
-        f'<div class="flow-node {status}">'
-        f'<div class="flow-code">{html.escape(code)}</div>'
-        '<div class="flow-copy">'
-        f"<strong>{html.escape(title)}</strong>"
-        f"<span>{html.escape(detail)}</span>"
-        "</div>"
-        f'<div class="flow-state"><i></i>{status_labels.get(status, "WAIT")}</div>'
-        "</div>"
-    )
+    return status if status in {
+        "pending",
+        "running",
+        "completed",
+        "error",
+        "disabled",
+    } else "pending"
 
 
 def render_workflow_diagram(
@@ -80,50 +67,29 @@ def render_workflow_diagram(
     selected_agents = selected_agents or []
     selected_set = set(selected_agents)
 
-    retrieve_detail = (
-        f"已找到 {paper_count} 篇相关论文"
-        if node_status.get("retrieve") == "completed"
-        else WORKFLOW_LABELS["retrieve"][1]
-    )
-    node_codes = {
-        "contextualize": "01",
-        "retrieve": "02",
-        "route": "03",
-        "report_agent": "05",
-    }
-    nodes = {
-        name: _node_html(
-            node_codes[name],
-            WORKFLOW_LABELS[name][0],
-            retrieve_detail
-            if name == "retrieve"
-            else WORKFLOW_LABELS[name][1],
-            node_status.get(name, "pending"),
-        )
-        for name in WORKFLOW_LABELS
-    }
-
+    agent_layout = [
+        ("survey_agent", 90, 365),
+        ("innovation_agent", 170, 415),
+        ("method_agent", 250, 365),
+        ("limitation_agent", 330, 415),
+    ]
     agent_nodes = []
-    for agent_name, label in AGENT_LABELS.items():
+    for index, (agent_name, x, y) in enumerate(agent_layout, start=1):
+        label = AGENT_LABELS[agent_name]
         status = agent_status.get(agent_name, "pending")
         if selected_set and agent_name not in selected_set:
             status = "disabled"
-            detail = "本轮未选择"
-        elif status == "completed":
-            detail = "分析完成"
-        elif status == "running":
-            detail = "正在分析"
-        elif status == "error":
-            detail = "执行失败"
-        else:
-            detail = "等待路由"
         agent_nodes.append(
-            _node_html(
-                f"A{len(agent_nodes) + 1}",
-                label,
-                detail,
-                status,
-            )
+            f"""
+            <g class="topo-agent {_topology_status(status)}">
+                <circle class="topo-halo" cx="{x}" cy="{y}" r="31"></circle>
+                <circle class="topo-disc" cx="{x}" cy="{y}" r="23"></circle>
+                <text class="topo-code" x="{x}" y="{y + 3}">A{index}</text>
+                <text class="topo-agent-label" x="{x}" y="{y + 43}">
+                    {html.escape(label)}
+                </text>
+            </g>
+            """
         )
 
     running_names = [
@@ -146,71 +112,146 @@ def render_workflow_diagram(
         live_text = "SYSTEM READY"
 
     selected_count = len(selected_agents)
-    connector_status = {
-        "after_context": (
-            "active"
-            if node_status.get("contextualize") == "completed"
-            else ""
-        ),
-        "after_retrieve": (
-            "active"
-            if node_status.get("retrieve") == "completed"
-            else ""
-        ),
-        "after_route": (
-            "active"
-            if node_status.get("route") == "completed"
-            else ""
-        ),
-        "after_agents": (
-            "active"
-            if selected_agents
-            and all(
-                agent_status.get(name) in {"completed", "error"}
-                for name in selected_agents
-            )
-            else ""
-        ),
+    context_status = _topology_status(
+        node_status.get("contextualize", "pending")
+    )
+    retrieve_status = _topology_status(
+        node_status.get("retrieve", "pending")
+    )
+    route_status = _topology_status(node_status.get("route", "pending"))
+    report_status = _topology_status(
+        node_status.get("report_agent", "pending")
+    )
+    context_line = (
+        "active" if context_status == "completed" else "pending"
+    )
+    retrieve_line = (
+        "active" if retrieve_status == "completed" else "pending"
+    )
+    route_line = "active" if route_status == "completed" else "pending"
+    agents_finished = bool(selected_agents) and all(
+        agent_status.get(name) in {"completed", "error"}
+        for name in selected_agents
+    )
+    report_line = "active" if agents_finished else "pending"
+    agent_link_status = {
+        name: (
+            "disabled"
+            if selected_set and name not in selected_set
+            else route_line
+        )
+        for name in AGENT_LABELS
     }
 
     placeholder.markdown(
         f"""
         <div class="workflow-panel">
-            <div class="flow-grid"></div>
-            <div class="flow-header">
+            <div class="topology-header">
                 <div>
-                    <span class="flow-eyebrow">LANGGRAPH / LIVE TRACE</span>
+                    <span class="topology-eyebrow">LANGGRAPH TOPOLOGY</span>
                     <div class="workflow-heading">实时执行图</div>
                 </div>
-                <div class="flow-live"><i></i>{html.escape(live_text)}</div>
+                <div class="topology-live"><i></i>{html.escape(live_text)}</div>
             </div>
-            <div class="flow-metrics">
-                <span><b>{paper_count:02d}</b> PAPERS</span>
-                <span><b>{selected_count:02d}</b> AGENTS</span>
-            </div>
-            <div class="flow-track">
-            {nodes["contextualize"]}
-            <div class="flow-connector {connector_status["after_context"]}"><i></i></div>
-            {nodes["retrieve"]}
-            <div class="flow-connector {connector_status["after_retrieve"]}"><i></i></div>
-            {nodes["route"]}
-            <div class="flow-connector {connector_status["after_route"]}"><i></i></div>
-            <div class="flow-parallel">
-                <div class="flow-parallel-title">
-                    <span>04</span>
-                    PARALLEL EXECUTION
-                </div>
-                <div class="workflow-agents">
+            <svg class="topology-map" viewBox="0 0 420 610"
+                 role="img" aria-label="LangGraph 多 Agent 实时执行拓扑">
+                <defs>
+                    <pattern id="topology-grid" width="24" height="24"
+                             patternUnits="userSpaceOnUse">
+                        <path d="M 24 0 L 0 0 0 24"
+                              fill="none" stroke="#173254"
+                              stroke-width=".7"></path>
+                    </pattern>
+                    <filter id="topology-glow" x="-80%" y="-80%"
+                            width="260%" height="260%">
+                        <feGaussianBlur stdDeviation="4"
+                                        result="blur"></feGaussianBlur>
+                        <feMerge>
+                            <feMergeNode in="blur"></feMergeNode>
+                            <feMergeNode in="SourceGraphic"></feMergeNode>
+                        </feMerge>
+                    </filter>
+                    <marker id="topology-arrow" markerWidth="7"
+                            markerHeight="7" refX="5" refY="3.5"
+                            orient="auto">
+                        <path d="M0,0 L0,7 L6,3.5 z"
+                              fill="#3f70a6"></path>
+                    </marker>
+                </defs>
+                <rect width="420" height="610"
+                      fill="url(#topology-grid)"></rect>
+
+                <text class="topo-section" x="210" y="25">QUERY PIPELINE</text>
+                <rect class="topo-boundary" x="132" y="38"
+                      width="156" height="155" rx="18"></rect>
+
+                <path class="topo-link {context_line}"
+                      d="M210 94 L210 125"></path>
+                <path class="topo-link {retrieve_line}"
+                      d="M210 168 L210 220"></path>
+
+                <g class="topo-core {context_status}">
+                    <circle class="topo-halo" cx="210" cy="72" r="28"></circle>
+                    <circle class="topo-disc" cx="210" cy="72" r="22"></circle>
+                    <text class="topo-code" x="210" y="76">Q</text>
+                    <text class="topo-label" x="210" y="108">理解问题</text>
+                </g>
+
+                <g class="topo-core {retrieve_status}">
+                    <circle class="topo-halo" cx="210" cy="147" r="27"></circle>
+                    <circle class="topo-disc" cx="210" cy="147" r="21"></circle>
+                    <text class="topo-code" x="210" y="151">R</text>
+                    <text class="topo-label" x="210" y="184">
+                        检索 {paper_count:02d} 篇
+                    </text>
+                </g>
+
+                <g class="topo-router {route_status}">
+                    <circle class="topo-halo" cx="210" cy="258" r="49"></circle>
+                    <circle class="topo-disc" cx="210" cy="258" r="39"></circle>
+                    <text class="topo-router-title" x="210" y="256">ROUTER</text>
+                    <text class="topo-router-sub" x="210" y="274">
+                        {selected_count:02d} AGENTS
+                    </text>
+                </g>
+
+                <rect class="topo-boundary" x="35" y="317"
+                      width="350" height="150" rx="20"></rect>
+                <text class="topo-section" x="210" y="307">
+                    PARALLEL AGENTS
+                </text>
+
+                <path class="topo-link branch {agent_link_status["survey_agent"]}"
+                      d="M184 286 C165 314 120 320 94 338"></path>
+                <path class="topo-link branch {agent_link_status["innovation_agent"]}"
+                      d="M198 296 C190 330 178 353 172 387"></path>
+                <path class="topo-link branch {agent_link_status["method_agent"]}"
+                      d="M222 296 C230 330 242 328 248 338"></path>
+                <path class="topo-link branch {agent_link_status["limitation_agent"]}"
+                      d="M236 286 C260 316 304 354 326 388"></path>
+
                 {''.join(agent_nodes)}
-                </div>
-            </div>
-            <div class="flow-connector {connector_status["after_agents"]}"><i></i></div>
-            {nodes["report_agent"]}
-            </div>
-            <div class="flow-footer">
-                <span>STATE STREAM</span>
-                <span>LANGGRAPH CONNECTED</span>
-            </div>
+
+                <path class="topo-link merge {report_line}"
+                      d="M90 389 C110 472 168 478 190 505"></path>
+                <path class="topo-link merge {report_line}"
+                      d="M170 439 C178 470 188 486 198 505"></path>
+                <path class="topo-link merge {report_line}"
+                      d="M250 389 C245 454 232 483 220 505"></path>
+                <path class="topo-link merge {report_line}"
+                      d="M330 439 C300 474 254 486 230 510"></path>
+
+                <g class="topo-report {report_status}">
+                    <circle class="topo-halo" cx="210" cy="545" r="42"></circle>
+                    <circle class="topo-disc" cx="210" cy="545" r="33"></circle>
+                    <text class="topo-router-title" x="210" y="543">REPORT</text>
+                    <text class="topo-router-sub" x="210" y="561">SYNTHESIS</text>
+                </g>
+
+                <text class="topo-foot" x="210" y="600">
+                    STATE STREAM / LANGGRAPH CONNECTED
+                </text>
+            </svg>
         </div>
         """,
         unsafe_allow_html=True,
@@ -297,244 +338,191 @@ def apply_styles() -> None:
             position: sticky;
             top: 1rem;
             overflow: hidden;
-            border: 1px solid #263532;
+            border: 1px solid #17375d;
             border-radius: 8px;
-            padding: 1rem;
-            background: #101715;
-            color: #d9e4e0;
+            padding: .9rem .85rem .45rem;
+            background: #071426;
+            color: #dcecff;
             box-shadow:
-                0 14px 34px rgba(17, 31, 27, .12),
-                inset 0 1px 0 rgba(255, 255, 255, .04);
+                0 18px 38px rgba(7, 25, 48, .18),
+                inset 0 1px 0 rgba(129, 190, 255, .05);
         }
-        .flow-grid {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            opacity: .16;
-            background-image:
-                linear-gradient(rgba(112, 213, 186, .14) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(112, 213, 186, .14) 1px, transparent 1px);
-            background-size: 22px 22px;
-            mask-image: linear-gradient(to bottom, black, transparent 78%);
-        }
-        .flow-header {
+        .topology-header {
             position: relative;
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
             gap: .75rem;
-            padding-bottom: .8rem;
-            border-bottom: 1px solid #263532;
+            padding: 0 .15rem .55rem;
+            border-bottom: 1px solid #15345a;
         }
-        .flow-eyebrow {
+        .topology-eyebrow {
             display: block;
-            color: #6b8b82;
+            color: #5c83ad;
             font-family: "Consolas", monospace;
             font-size: .62rem;
             letter-spacing: .08rem;
             margin-bottom: .2rem;
         }
         .workflow-heading {
-            color: #f0f7f4;
+            color: #edf6ff;
             font-size: 1.05rem;
             font-weight: 680;
         }
-        .flow-live {
+        .topology-live {
             display: flex;
             align-items: center;
             gap: .35rem;
-            color: #7b9b92;
+            color: #7295b9;
             font-family: "Consolas", monospace;
             font-size: .6rem;
             white-space: nowrap;
         }
-        .flow-live i,
-        .flow-state i {
+        .topology-live i {
             width: .42rem;
             height: .42rem;
             display: inline-block;
             border-radius: 50%;
-            background: #52645f;
+            background: #54a8ff;
+            box-shadow: 0 0 10px rgba(84, 168, 255, .85);
         }
-        .flow-live i {
-            background: #4be0b7;
-            box-shadow: 0 0 10px rgba(75, 224, 183, .7);
-        }
-        .flow-metrics {
-            position: relative;
-            display: flex;
-            gap: 1rem;
-            padding: .7rem 0 .65rem;
-            color: #668078;
-            font-family: "Consolas", monospace;
-            font-size: .6rem;
-        }
-        .flow-metrics b {
-            color: #9db8b0;
-            font-size: .72rem;
-            font-weight: 600;
-        }
-        .flow-track {
-            position: relative;
-        }
-        .flow-node {
-            position: relative;
-            display: grid;
-            grid-template-columns: 1.8rem minmax(0, 1fr) auto;
-            gap: .58rem;
-            align-items: center;
-            min-height: 3.15rem;
-            border: 1px solid #293a36;
-            border-radius: 6px;
-            padding: .52rem .62rem;
-            background: rgba(18, 28, 25, .88);
-            transition: border-color .25s ease, background .25s ease;
-        }
-        .flow-code {
-            color: #526b64;
-            font-family: "Consolas", monospace;
-            font-size: .66rem;
-        }
-        .flow-copy {
-            min-width: 0;
-        }
-        .flow-copy strong {
+        .topology-map {
             display: block;
-            color: #dce7e3;
-            font-size: .78rem;
-            font-weight: 620;
-            margin-bottom: .1rem;
+            width: 100%;
+            height: auto;
+            max-height: calc(100vh - 13rem);
+            min-height: 31rem;
+            margin-top: .35rem;
         }
-        .flow-copy span {
-            display: block;
-            overflow: hidden;
-            color: #718a82;
-            font-size: .64rem;
-            line-height: 1.3;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .topo-boundary {
+            fill: rgba(8, 25, 47, .48);
+            stroke: #52759b;
+            stroke-width: 1;
+            stroke-dasharray: 4 5;
         }
-        .flow-state {
-            display: flex;
-            align-items: center;
-            gap: .28rem;
-            color: #536a63;
+        .topo-section,
+        .topo-foot {
+            fill: #6689af;
             font-family: "Consolas", monospace;
-            font-size: .56rem;
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            text-anchor: middle;
         }
-        .flow-node.completed {
-            border-color: #2d6859;
-            background: rgba(25, 63, 52, .48);
+        .topo-foot {
+            fill: #42678e;
+            font-size: 8px;
         }
-        .flow-node.completed .flow-code,
-        .flow-node.completed .flow-state {
-            color: #69d5b6;
+        .topo-link {
+            fill: none;
+            stroke: #31577f;
+            stroke-width: 1.4;
+            stroke-dasharray: 4 5;
+            marker-end: url(#topology-arrow);
         }
-        .flow-node.completed .flow-state i {
-            background: #47d4ad;
-            box-shadow: 0 0 8px rgba(71, 212, 173, .55);
+        .topo-link.active {
+            stroke: #5ab3ff;
+            stroke-width: 1.8;
+            stroke-dasharray: 7 6;
+            filter: url(#topology-glow);
+            animation: topology-flow 1.1s linear infinite;
         }
-        .flow-node.running {
-            border-color: #4ba991;
-            background: rgba(28, 74, 61, .48);
-            box-shadow:
-                inset 3px 0 0 #4be0b7,
-                0 0 18px rgba(75, 224, 183, .08);
+        .topo-link.branch,
+        .topo-link.merge {
+            marker-end: none;
         }
-        .flow-node.running .flow-code,
-        .flow-node.running .flow-state {
-            color: #85f0d2;
+        .topo-link.disabled {
+            opacity: .15;
         }
-        .flow-node.running .flow-state i {
-            background: #61eac5;
-            box-shadow: 0 0 10px rgba(97, 234, 197, .8);
-            animation: workflow-pulse 1.15s ease-in-out infinite;
+        .topo-disc {
+            fill: #102947;
+            stroke: #426f9f;
+            stroke-width: 1.3;
         }
-        .flow-node.error {
-            border-color: #7f3f45;
-            background: rgba(90, 38, 43, .38);
+        .topo-halo {
+            fill: none;
+            stroke: transparent;
+            stroke-width: 2;
         }
-        .flow-node.error .flow-state,
-        .flow-node.error .flow-code {
-            color: #ff8e91;
+        .topo-code,
+        .topo-router-title,
+        .topo-router-sub,
+        .topo-label,
+        .topo-agent-label {
+            text-anchor: middle;
+            dominant-baseline: middle;
+            font-family: "Consolas", "Microsoft YaHei", sans-serif;
         }
-        .flow-node.error .flow-state i {
-            background: #ff7378;
+        .topo-code {
+            fill: #8ab4df;
+            font-size: 11px;
+            font-weight: 700;
         }
-        .flow-node.disabled {
-            border-style: dashed;
-            opacity: .42;
+        .topo-label,
+        .topo-agent-label {
+            fill: #83a4c5;
+            font-size: 10px;
         }
-        .flow-connector {
-            position: relative;
-            width: 2px;
-            height: .8rem;
-            background: #2b3c37;
-            margin: 0 auto;
+        .topo-router-title {
+            fill: #b9d9f7;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .8px;
         }
-        .flow-connector i {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 2px;
-            height: 0;
-            background: #49d6af;
-            box-shadow: 0 0 8px rgba(73, 214, 175, .6);
-            transition: height .3s ease;
+        .topo-router-sub {
+            fill: #6f96bd;
+            font-size: 7px;
+            letter-spacing: .6px;
         }
-        .flow-connector.active i {
-            height: 100%;
+        .topo-core.completed .topo-disc,
+        .topo-router.completed .topo-disc,
+        .topo-agent.completed .topo-disc,
+        .topo-report.completed .topo-disc {
+            fill: #123a65;
+            stroke: #55a8f5;
         }
-        .flow-parallel {
-            border: 1px solid #293a36;
-            border-radius: 6px;
-            padding: .55rem;
-            background: rgba(13, 21, 19, .72);
+        .topo-core.running .topo-disc,
+        .topo-router.running .topo-disc,
+        .topo-agent.running .topo-disc,
+        .topo-report.running .topo-disc {
+            fill: #154775;
+            stroke: #7cc5ff;
+            stroke-width: 2;
+            filter: url(#topology-glow);
         }
-        .flow-parallel-title {
-            display: flex;
-            gap: .45rem;
-            align-items: center;
-            color: #607b73;
-            font-family: "Consolas", monospace;
-            font-size: .58rem;
-            margin-bottom: .48rem;
+        .topo-core.running .topo-halo,
+        .topo-router.running .topo-halo,
+        .topo-agent.running .topo-halo,
+        .topo-report.running .topo-halo {
+            stroke: #4da9f7;
+            opacity: .7;
+            animation: topology-pulse 1.25s ease-out infinite;
         }
-        .flow-parallel-title span {
-            color: #526b64;
+        .topo-core.running text,
+        .topo-router.running text,
+        .topo-agent.running text,
+        .topo-report.running text,
+        .topo-core.completed text,
+        .topo-router.completed text,
+        .topo-agent.completed text,
+        .topo-report.completed text {
+            fill: #d9efff;
         }
-        .workflow-agents {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: .38rem;
+        .topo-agent.disabled {
+            opacity: .25;
         }
-        .workflow-agents .flow-node {
-            grid-template-columns: 1.3rem minmax(0, 1fr);
-            gap: .35rem;
-            min-height: 3rem;
-            padding: .46rem .5rem;
+        .topo-core.error .topo-disc,
+        .topo-router.error .topo-disc,
+        .topo-agent.error .topo-disc,
+        .topo-report.error .topo-disc {
+            fill: #55243a;
+            stroke: #e16d91;
         }
-        .workflow-agents .flow-state {
-            grid-column: 2;
+        @keyframes topology-flow {
+            to { stroke-dashoffset: -26; }
         }
-        .workflow-agents .flow-copy span {
-            white-space: normal;
-        }
-        .flow-footer {
-            position: relative;
-            display: flex;
-            justify-content: space-between;
-            gap: .5rem;
-            border-top: 1px solid #263532;
-            color: #4f6861;
-            font-family: "Consolas", monospace;
-            font-size: .52rem;
-            margin-top: .75rem;
-            padding-top: .65rem;
-        }
-        @keyframes workflow-pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: .45; transform: scale(.72); }
+        @keyframes topology-pulse {
+            0% { opacity: .75; transform: scale(.88); transform-origin: center; }
+            100% { opacity: 0; transform: scale(1.18); transform-origin: center; }
         }
         </style>
         """,
