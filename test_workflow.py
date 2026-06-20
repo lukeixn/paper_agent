@@ -162,6 +162,10 @@ def test_stream_reports_each_parallel_agent() -> None:
     } == {"innovation_agent", "limitation_agent"}
     assert nodes[-2:] == ["report_agent", "end"]
     assert events[-1]["state"]["final_report"]
+    assert {
+        output["agent_name"]
+        for output in events[-1]["state"]["agent_outputs"]
+    } == {"innovation_agent", "limitation_agent"}
 
 
 def test_research_direction_question_uses_all_agents() -> None:

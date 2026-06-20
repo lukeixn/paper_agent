@@ -213,7 +213,6 @@ def report_agent_node(state: MainState) -> dict[str, Any]:
     model_config["api_key"] = ""
     global_context["model_config"] = model_config
     return {
-        "agent_outputs": [],
         "agent_results": agent_results,
         "final_report": report,
         "global_context": global_context,

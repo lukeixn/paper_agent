@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import base64
 import html
 import importlib
 import inspect
+import json
 import os
 from typing import Any
 
@@ -52,6 +52,8 @@ TOPOLOGY_SVG_STYLE = """
 .running .topo-halo{stroke:#4da9f7;opacity:.7;animation:pulse 1.25s ease-out infinite}
 .running text,.completed text{fill:#d9efff}
 .topo-agent.disabled{opacity:.25}
+.topo-agent.clickable{cursor:pointer}
+.topo-agent.clickable:hover .topo-disc{stroke:#a8d8ff;stroke-width:2.4;filter:url(#topology-glow)}
 .error .topo-disc{fill:#55243a;stroke:#e16d91}
 @keyframes flow{to{stroke-dashoffset:-26}}
 @keyframes pulse{0%{opacity:.75}100%{opacity:0}}
@@ -182,6 +184,27 @@ def topology_agent_layout(
     ]
 
 
+def agent_output_payload(
+    agent_outputs: list[dict[str, Any]] | None,
+) -> dict[str, dict[str, str]]:
+    return {
+        output["agent_name"]: {
+            "title": str(
+                output.get(
+                    "title",
+                    AGENT_LABELS.get(
+                        output["agent_name"],
+                        output["agent_name"],
+                    ),
+                )
+            ),
+            "content": str(output.get("content", "")),
+            "error": str(output.get("error", "")),
+        }
+        for output in (agent_outputs or [])
+    }
+
+
 def render_workflow_diagram(
     placeholder,
     *,
@@ -189,10 +212,12 @@ def render_workflow_diagram(
     agent_status: dict[str, str] | None = None,
     selected_agents: list[str] | None = None,
     paper_count: int = 0,
+    agent_outputs: list[dict[str, Any]] | None = None,
 ) -> None:
     node_status = node_status or {}
     agent_status = agent_status or {}
     selected_agents = selected_agents or []
+    output_map = agent_output_payload(agent_outputs)
     selected_count = len(selected_agents)
     context_status = _topology_status(
         node_status.get("contextualize", "pending")
@@ -228,9 +253,20 @@ def render_workflow_diagram(
             if status == "completed"
             else "pending"
         )
+        clickable = (
+            "clickable"
+            if agent_name in output_map
+            else ""
+        )
+        click_handler = (
+            f'onclick="openAgent({html.escape(json.dumps(agent_name))})"'
+            if clickable
+            else ""
+        )
         agent_nodes.append(
             f"""
-            <g class="topo-agent {_topology_status(status)}">
+            <g class="topo-agent {_topology_status(status)} {clickable}"
+               {click_handler}>
                 <circle class="topo-halo" cx="{x}" cy="{y}" r="31"></circle>
                 <circle class="topo-disc" cx="{x}" cy="{y}" r="23"></circle>
                 <text class="topo-code" x="{x}" y="{y + 3}">A{index}</text>
@@ -288,6 +324,9 @@ def render_workflow_diagram(
                 <div>
                     <span class="topology-eyebrow">LANGGRAPH TOPOLOGY</span>
                     <div class="workflow-heading">实时执行图</div>
+                    <div class="topology-hint">
+                        点击已完成 Agent 查看原始输出
+                    </div>
                 </div>
                 <div class="topology-live"><i></i>{html.escape(live_text)}</div>
             </div>
@@ -377,35 +416,103 @@ def render_workflow_diagram(
                     STATE STREAM / LANGGRAPH CONNECTED
                 </text>
             </svg>
+            <div class="agent-modal" id="agent-modal" aria-hidden="true">
+                <div class="agent-modal-backdrop" onclick="closeAgent()"></div>
+                <section class="agent-modal-dialog">
+                    <header>
+                        <div>
+                            <span>AGENT RAW OUTPUT</span>
+                            <h3 id="agent-modal-title"></h3>
+                        </div>
+                        <button type="button" onclick="closeAgent()"
+                                aria-label="关闭">×</button>
+                    </header>
+                    <pre id="agent-modal-content"></pre>
+                </section>
+            </div>
         </div>
         """
-    svg_start = panel_markup.index("<svg")
-    svg_end = panel_markup.index("</svg>") + len("</svg>")
-    svg_markup = panel_markup[svg_start:svg_end]
-    svg_uri = base64.b64encode(
-        svg_markup.encode("utf-8")
-    ).decode("ascii")
-    image_markup = (
-        '<img class="topology-image" '
-        'alt="LangGraph 多 Agent 实时执行拓扑" '
-        f'src="data:image/svg+xml;base64,{svg_uri}">'
-    )
-    panel_markup = (
-        panel_markup[:svg_start]
-        + image_markup
-        + panel_markup[svg_end:]
-    )
-    placeholder.markdown(
-        panel_markup,
-        unsafe_allow_html=True,
-    )
+    outputs_json = json.dumps(
+        output_map,
+        ensure_ascii=False,
+    ).replace("</", "<\\/")
+    component_markup = f"""
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+        *{{box-sizing:border-box}}
+        body{{margin:0;background:transparent;font-family:"Microsoft YaHei",sans-serif}}
+        .workflow-panel{{position:relative;overflow:hidden;border:1px solid #17375d;border-radius:8px;padding:.9rem .85rem .45rem;background:#071426;color:#dcecff;box-shadow:0 18px 38px rgba(7,25,48,.18),inset 0 1px 0 rgba(129,190,255,.05)}}
+        .topology-header{{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;padding:0 .15rem .55rem;border-bottom:1px solid #15345a}}
+        .topology-eyebrow{{display:block;color:#5c83ad;font-family:Consolas,monospace;font-size:.62rem;letter-spacing:.08rem;margin-bottom:.2rem}}
+        .workflow-heading{{color:#edf6ff;font-size:1.05rem;font-weight:680}}
+        .topology-hint{{color:#567ca2;font-size:.64rem;margin-top:.2rem}}
+        .topology-live{{display:flex;align-items:center;gap:.35rem;color:#7295b9;font-family:Consolas,monospace;font-size:.6rem;white-space:nowrap}}
+        .topology-live i{{width:.42rem;height:.42rem;border-radius:50%;background:#54a8ff;box-shadow:0 0 10px rgba(84,168,255,.85)}}
+        .topology-map{{display:block;width:100%;height:auto;aspect-ratio:420/610;object-fit:contain;margin-top:.35rem}}
+        .agent-modal{{position:absolute;inset:0;display:none;z-index:20}}
+        .agent-modal.open{{display:block}}
+        .agent-modal-backdrop{{position:absolute;inset:0;background:rgba(2,10,23,.76);backdrop-filter:blur(3px)}}
+        .agent-modal-dialog{{position:absolute;inset:8% 6%;display:flex;flex-direction:column;overflow:hidden;border:1px solid #2d6091;border-radius:8px;background:#091a30;box-shadow:0 20px 50px rgba(0,0,0,.45)}}
+        .agent-modal-dialog header{{display:flex;align-items:flex-start;justify-content:space-between;padding:.9rem 1rem;border-bottom:1px solid #183b62}}
+        .agent-modal-dialog header span{{color:#6293bd;font-family:Consolas,monospace;font-size:.62rem;letter-spacing:.08rem}}
+        .agent-modal-dialog h3{{margin:.18rem 0 0;color:#e3f2ff;font-size:1rem}}
+        .agent-modal-dialog button{{width:2rem;height:2rem;border:0;background:transparent;color:#8eb7db;font-size:1.5rem;cursor:pointer}}
+        .agent-modal-dialog pre{{flex:1;overflow:auto;margin:0;padding:1rem;color:#c9dff2;font-family:"Microsoft YaHei",sans-serif;font-size:.76rem;line-height:1.7;white-space:pre-wrap;word-break:break-word}}
+        </style>
+    </head>
+    <body>
+        {panel_markup}
+        <script>
+        const agentOutputs = {outputs_json};
+        function openAgent(name) {{
+            const output = agentOutputs[name];
+            if (!output) return;
+            document.getElementById("agent-modal-title").textContent =
+                output.title || name;
+            document.getElementById("agent-modal-content").textContent =
+                output.error ? "执行失败：\\n" + output.error : output.content;
+            const modal = document.getElementById("agent-modal");
+            modal.classList.add("open");
+            modal.setAttribute("aria-hidden", "false");
+        }}
+        function closeAgent() {{
+            const modal = document.getElementById("agent-modal");
+            modal.classList.remove("open");
+            modal.setAttribute("aria-hidden", "true");
+        }}
+        document.addEventListener("keydown", (event) => {{
+            if (event.key === "Escape") closeAgent();
+        }});
+        </script>
+    </body>
+    </html>
+    """
+    with placeholder.container():
+        st.markdown(
+            '<div class="workflow-sticky-marker"></div>',
+            unsafe_allow_html=True,
+        )
+        st.iframe(
+            component_markup,
+            height=720,
+            width="stretch",
+        )
 
 
 def completed_workflow_progress(
     state: dict[str, Any] | None,
-) -> tuple[dict[str, str], dict[str, str], list[str], int]:
+) -> tuple[
+    dict[str, str],
+    dict[str, str],
+    list[str],
+    int,
+    list[dict[str, Any]],
+]:
     if not state or not state.get("final_report"):
-        return {}, {}, [], 0
+        return {}, {}, [], 0, []
     selected_agents = state.get("selected_agents", [])
     node_status = {
         name: "completed" for name in WORKFLOW_LABELS
@@ -420,6 +527,7 @@ def completed_workflow_progress(
         agent_status,
         selected_agents,
         len(state.get("retrieved_papers", [])),
+        list(state.get("agent_outputs", [])),
     )
 
 
@@ -477,11 +585,11 @@ def apply_styles() -> None:
             color: #147d64;
             font-weight: 650;
         }
-        div[data-testid="stHorizontalBlock"]:has(.workflow-panel) {
+        div[data-testid="stHorizontalBlock"]:has(.workflow-sticky-marker) {
             align-items: flex-start;
             overflow: visible;
         }
-        div[data-testid="stColumn"]:has(.workflow-panel) {
+        div[data-testid="stColumn"]:has(.workflow-sticky-marker) {
             position: sticky;
             top: 4rem;
             z-index: 3;
@@ -489,7 +597,7 @@ def apply_styles() -> None:
             height: fit-content;
             overflow: visible;
         }
-        div[data-testid="stColumn"]:has(.workflow-panel)
+        div[data-testid="stColumn"]:has(.workflow-sticky-marker)
         > div[data-testid="stVerticalBlock"] {
             overflow: visible;
         }
@@ -684,7 +792,7 @@ def apply_styles() -> None:
             100% { opacity: 0; transform: scale(1.18); transform-origin: center; }
         }
         @media (max-width: 900px) {
-            div[data-testid="stColumn"]:has(.workflow-panel) {
+            div[data-testid="stColumn"]:has(.workflow-sticky-marker) {
                 position: static;
                 top: auto;
             }
@@ -1345,6 +1453,7 @@ def main() -> None:
         agent_status=progress[1],
         selected_agents=progress[2],
         paper_count=progress[3],
+        agent_outputs=progress[4],
     )
 
     messages = conversation["messages"]
@@ -1465,6 +1574,9 @@ def main() -> None:
                             agent_status=agent_status,
                             selected_agents=selected_agents,
                             paper_count=paper_count,
+                            agent_outputs=list(
+                                state.get("agent_outputs", [])
+                            ),
                         )
 
                     status.update(
