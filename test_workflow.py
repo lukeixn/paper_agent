@@ -9,6 +9,7 @@ from workflow import (
     create_pipeline_state,
     run_pipeline,
     run_pipeline_state,
+    stream_pipeline_state,
     workflow_info,
 )
 
@@ -135,9 +136,37 @@ def test_follow_up_question_uses_conversation_context() -> None:
     assert "状态空间模型" in update["conversation_context"]
 
 
+def test_stream_reports_each_parallel_agent() -> None:
+    events = list(
+        stream_pipeline_state(
+            "Mamba innovation limitation",
+            top_k=2,
+            model_config={"provider": "offline"},
+            require_langgraph=True,
+        )
+    )
+
+    nodes = [event["node"] for event in events]
+    assert nodes[:4] == [
+        "contextualize",
+        "contextualize",
+        "retrieve",
+        "route",
+    ]
+    agent_events = [
+        event for event in events if event["node"] == "run_agent"
+    ]
+    assert {
+        event["agent_name"] for event in agent_events
+    } == {"innovation_agent", "limitation_agent"}
+    assert nodes[-2:] == ["report_agent", "end"]
+    assert events[-1]["state"]["final_report"]
+
+
 if __name__ == "__main__":
     test_workflow_info()
     test_pipeline_generates_report()
     test_parallel_agents_receive_isolated_context()
     test_follow_up_question_uses_conversation_context()
+    test_stream_reports_each_parallel_agent()
     print("workflow tests passed")

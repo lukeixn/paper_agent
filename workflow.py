@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, Iterator
 
 from agent.agent import AGENT_REGISTRY
 from aggregator import ReportAgent
@@ -280,6 +280,63 @@ def run_graph_state(
     )
 
 
+def _merge_graph_update(
+    state: MainState,
+    update: dict[str, Any],
+) -> None:
+    for key, value in update.items():
+        if key in {"agent_outputs", "errors"}:
+            state.setdefault(key, []).extend(value)
+        else:
+            state[key] = value
+
+
+def stream_graph_state(
+    query: str,
+    top_k: int = 5,
+    data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
+    conversation_history: list[ConversationMessage] | None = None,
+) -> Iterator[dict[str, Any]]:
+    initial_state = create_pipeline_state(
+        query,
+        top_k,
+        data_dir,
+        model_config,
+        conversation_history,
+    )
+    accumulated_state = dict(initial_state)
+    yield {
+        "node": "contextualize",
+        "status": "running",
+        "state": dict(accumulated_state),
+    }
+
+    for graph_update in build_workflow().stream(
+        initial_state,
+        stream_mode="updates",
+    ):
+        for node, update in graph_update.items():
+            _merge_graph_update(accumulated_state, update)
+            event: dict[str, Any] = {
+                "node": node,
+                "status": "completed",
+                "state": dict(accumulated_state),
+            }
+            if node == "run_agent":
+                outputs = update.get("agent_outputs", [])
+                if outputs:
+                    event["agent_name"] = outputs[0]["agent_name"]
+                    event["error"] = outputs[0]["error"]
+            yield event
+
+    yield {
+        "node": "end",
+        "status": "completed",
+        "state": dict(accumulated_state),
+    }
+
+
 def _task_for_agent(state: MainState, agent_name: str) -> AgentTaskState:
     return {
         "agent_name": agent_name,
@@ -360,6 +417,42 @@ def run_pipeline_state(
         model_config,
         conversation_history,
     )
+
+
+def stream_pipeline_state(
+    query: str,
+    top_k: int = 5,
+    data_dir: str = "data",
+    model_config: dict[str, Any] | None = None,
+    *,
+    require_langgraph: bool = False,
+    conversation_history: list[ConversationMessage] | None = None,
+) -> Iterator[dict[str, Any]]:
+    if langgraph_available():
+        yield from stream_graph_state(
+            query,
+            top_k,
+            data_dir,
+            model_config,
+            conversation_history,
+        )
+        return
+    if require_langgraph:
+        raise RuntimeError(
+            "LangGraph is not installed in this environment. Install requirements.txt and rerun."
+        )
+    state = run_compatible_state(
+        query,
+        top_k,
+        data_dir,
+        model_config,
+        conversation_history,
+    )
+    yield {
+        "node": "end",
+        "status": "completed",
+        "state": state,
+    }
 
 
 def run_pipeline(

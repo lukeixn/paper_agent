@@ -5,8 +5,10 @@ from streamlit.testing.v1 import AppTest
 
 
 def test_workflow_hot_reload_guard() -> None:
-    runner = ui.current_workflow().run_pipeline_state
+    module = ui.current_workflow()
+    runner = module.run_pipeline_state
     assert "conversation_history" in runner.__annotations__
+    assert hasattr(module, "stream_pipeline_state")
 
 
 def test_offline_analysis_ui() -> None:
@@ -19,15 +21,22 @@ def test_offline_analysis_ui() -> None:
     assert [item.placeholder for item in app.chat_input] == [
         "输入研究问题，或继续追问上一轮结果"
     ]
+    assert any(
+        "实时执行图" in item.value for item in app.markdown
+    )
 
     app.selectbox[0].set_value("offline").run()
     app.radio[0].set_value("研究分析").run()
+    assert app.slider[1].max == 30
     app.slider[1].set_value(10).run()
     app.chat_input[0].set_value(
         "Mamba innovation limitation"
     ).run(timeout=90)
 
     assert len(app.exception) == 0
+    assert any(
+        "已找到" in item.value for item in app.markdown
+    )
     assert [tab.label for tab in app.tabs] == [
         "概览",
         "论文",

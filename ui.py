@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import importlib
 import inspect
 import os
@@ -20,15 +21,127 @@ AGENT_LABELS = {
     "limitation_agent": "局限与机会",
 }
 
+WORKFLOW_LABELS = {
+    "contextualize": ("理解问题", "结合连续对话重写追问"),
+    "retrieve": ("检索论文", "从本地论文库选取证据"),
+    "route": ("任务路由", "选择需要参与的研究 Agent"),
+    "report_agent": ("报告汇总", "综合各 Agent 结果生成回答"),
+}
+
 
 def current_workflow():
     global workflow
     parameters = inspect.signature(
         workflow.run_pipeline_state
     ).parameters
-    if "conversation_history" not in parameters:
+    if (
+        "conversation_history" not in parameters
+        or not hasattr(workflow, "stream_pipeline_state")
+    ):
         workflow = importlib.reload(workflow)
     return workflow
+
+
+def _node_html(
+    title: str,
+    detail: str,
+    status: str,
+) -> str:
+    return (
+        f'<div class="workflow-node {status}">'
+        f"<strong>{html.escape(title)}</strong>"
+        f"{html.escape(detail)}"
+        "</div>"
+    )
+
+
+def render_workflow_diagram(
+    placeholder,
+    *,
+    node_status: dict[str, str] | None = None,
+    agent_status: dict[str, str] | None = None,
+    selected_agents: list[str] | None = None,
+    paper_count: int = 0,
+) -> None:
+    node_status = node_status or {}
+    agent_status = agent_status or {}
+    selected_agents = selected_agents or []
+    selected_set = set(selected_agents)
+
+    retrieve_detail = (
+        f"已找到 {paper_count} 篇相关论文"
+        if node_status.get("retrieve") == "completed"
+        else WORKFLOW_LABELS["retrieve"][1]
+    )
+    nodes = {
+        name: _node_html(
+            WORKFLOW_LABELS[name][0],
+            retrieve_detail
+            if name == "retrieve"
+            else WORKFLOW_LABELS[name][1],
+            node_status.get(name, "pending"),
+        )
+        for name in WORKFLOW_LABELS
+    }
+
+    agent_nodes = []
+    for agent_name, label in AGENT_LABELS.items():
+        status = agent_status.get(agent_name, "pending")
+        if selected_set and agent_name not in selected_set:
+            status = "disabled"
+            detail = "本轮未选择"
+        elif status == "completed":
+            detail = "分析完成"
+        elif status == "running":
+            detail = "正在分析"
+        elif status == "error":
+            detail = "执行失败"
+        else:
+            detail = "等待路由"
+        agent_nodes.append(_node_html(label, detail, status))
+
+    placeholder.markdown(
+        f"""
+        <div class="workflow-panel">
+            <div class="workflow-heading">实时执行图</div>
+            <div class="workflow-caption">节点状态会随 LangGraph 实时更新</div>
+            {nodes["contextualize"]}
+            <div class="workflow-connector"></div>
+            {nodes["retrieve"]}
+            <div class="workflow-connector"></div>
+            {nodes["route"]}
+            <div class="workflow-connector"></div>
+            <div class="workflow-agents">
+                {''.join(agent_nodes)}
+            </div>
+            <div class="workflow-connector"></div>
+            {nodes["report_agent"]}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def completed_workflow_progress(
+    state: dict[str, Any] | None,
+) -> tuple[dict[str, str], dict[str, str], list[str], int]:
+    if not state or not state.get("final_report"):
+        return {}, {}, [], 0
+    selected_agents = state.get("selected_agents", [])
+    node_status = {
+        name: "completed" for name in WORKFLOW_LABELS
+    }
+    agent_status = {
+        name: "completed"
+        for name in selected_agents
+        if name in AGENT_LABELS
+    }
+    return (
+        node_status,
+        agent_status,
+        selected_agents,
+        len(state.get("retrieved_papers", [])),
+    )
 
 
 def apply_styles() -> None:
@@ -85,6 +198,78 @@ def apply_styles() -> None:
             color: #147d64;
             font-weight: 650;
         }
+        .workflow-panel {
+            position: sticky;
+            top: 1rem;
+            border-left: 1px solid #dde3df;
+            padding-left: 1.25rem;
+        }
+        .workflow-heading {
+            color: #26332f;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: .25rem;
+        }
+        .workflow-caption {
+            color: #73807b;
+            font-size: .78rem;
+            margin-bottom: .9rem;
+        }
+        .workflow-node {
+            border: 1px solid #d6ddd9;
+            border-radius: 6px;
+            padding: .62rem .72rem;
+            background: #f7f9f8;
+            color: #53605c;
+            font-size: .84rem;
+            line-height: 1.25;
+        }
+        .workflow-node strong {
+            display: block;
+            color: inherit;
+            font-size: .87rem;
+            margin-bottom: .16rem;
+        }
+        .workflow-node.completed {
+            border-color: #6eb49f;
+            background: #eaf5f1;
+            color: #176b56;
+        }
+        .workflow-node.running {
+            border-color: #d99b35;
+            background: #fff4df;
+            color: #85540d;
+            box-shadow: 0 0 0 2px rgba(217, 155, 53, .12);
+            animation: workflow-pulse 1.35s ease-in-out infinite;
+        }
+        .workflow-node.error {
+            border-color: #d96b62;
+            background: #fff0ee;
+            color: #9b312a;
+        }
+        .workflow-node.disabled {
+            border-style: dashed;
+            background: #fafbfa;
+            color: #9aa49f;
+        }
+        .workflow-connector {
+            width: 2px;
+            height: .7rem;
+            background: #cbd4d0;
+            margin: 0 auto;
+        }
+        .workflow-agents {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .45rem;
+        }
+        .workflow-agents .workflow-node {
+            min-height: 3.3rem;
+        }
+        @keyframes workflow-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .72; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -134,7 +319,7 @@ def model_settings() -> dict[str, Any]:
         value=float(cfg["MODEL"].get("TEMPERATURE", 0.3)),
         step=0.1,
     )
-    top_k = st.sidebar.slider("检索论文数", 1, 20, 10)
+    top_k = st.sidebar.slider("检索论文数", 1, 30, 10)
 
     return {
         "provider": provider,
@@ -636,19 +821,37 @@ def main() -> None:
         st.session_state.pop("analysis_state", None)
         st.rerun()
 
+    chat_column, graph_column = st.columns(
+        [2.15, 1],
+        gap="large",
+    )
+    graph_placeholder = graph_column.empty()
+    progress = completed_workflow_progress(
+        st.session_state.get("analysis_state")
+    )
+    render_workflow_diagram(
+        graph_placeholder,
+        node_status=progress[0],
+        agent_status=progress[1],
+        selected_agents=progress[2],
+        paper_count=progress[3],
+    )
+
     messages = st.session_state["chat_messages"]
-    if not messages:
-        st.info(
-            "输入第一个研究问题。之后可以直接追问，Agent 会结合当前会话继续分析。"
+    with chat_column:
+        if not messages:
+            st.info(
+                "输入第一个研究问题。之后可以直接追问，Agent 会结合当前会话继续分析。"
+            )
+
+        for message in messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        query = st.chat_input(
+            "输入研究问题，或继续追问上一轮结果",
         )
 
-    for message in messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    query = st.chat_input(
-        "输入研究问题，或继续追问上一轮结果",
-    )
     if query:
         if settings["provider"] != "offline" and not (
             settings["api_key"]
@@ -662,25 +865,107 @@ def main() -> None:
         else:
             history = list(messages)
             messages.append({"role": "user", "content": query.strip()})
-            with st.chat_message("user"):
-                st.markdown(query.strip())
-            with st.status("正在运行论文分析工作流…", expanded=True) as status:
-                st.write("理解连续对话")
-                st.write("检索相关论文")
-                st.write("路由分析任务")
-                state = current_workflow().run_pipeline_state(
-                    query.strip(),
-                    top_k=settings["top_k"],
-                    model_config=runtime_model_config(settings),
-                    require_langgraph=True,
-                    conversation_history=history,
-                )
-                status.update(label="分析完成", state="complete", expanded=False)
+            node_status = {
+                "contextualize": "running",
+                "retrieve": "pending",
+                "route": "pending",
+                "report_agent": "pending",
+            }
+            agent_status: dict[str, str] = {}
+            selected_agents: list[str] = []
+            completed_agents: set[str] = set()
+            paper_count = 0
+            render_workflow_diagram(
+                graph_placeholder,
+                node_status=node_status,
+                agent_status=agent_status,
+            )
+
+            with chat_column:
+                with st.chat_message("user"):
+                    st.markdown(query.strip())
+                with st.status(
+                    "正在理解研究问题…",
+                    expanded=True,
+                ) as status:
+                    state: dict[str, Any] = {}
+                    event_line = st.empty()
+                    for event in current_workflow().stream_pipeline_state(
+                        query.strip(),
+                        top_k=settings["top_k"],
+                        model_config=runtime_model_config(settings),
+                        require_langgraph=True,
+                        conversation_history=history,
+                    ):
+                        state = event["state"]
+                        node = event["node"]
+                        if node == "contextualize" and event["status"] == "completed":
+                            node_status["contextualize"] = "completed"
+                            node_status["retrieve"] = "running"
+                            event_line.write("正在检索相关论文")
+                            status.update(label="正在检索相关论文…")
+                        elif node == "retrieve":
+                            node_status["retrieve"] = "completed"
+                            node_status["route"] = "running"
+                            paper_count = len(
+                                state.get("retrieved_papers", [])
+                            )
+                            event_line.write(
+                                f"已检索 {paper_count} 篇论文，正在路由任务"
+                            )
+                            status.update(label="正在选择研究 Agent…")
+                        elif node == "route":
+                            node_status["route"] = "completed"
+                            selected_agents = state.get(
+                                "selected_agents", []
+                            )
+                            agent_status = {
+                                name: "running"
+                                for name in selected_agents
+                            }
+                            event_line.write(
+                                f"{len(selected_agents)} 个 Agent 正在并行分析"
+                            )
+                            status.update(label="研究 Agent 正在并行分析…")
+                        elif node == "run_agent":
+                            agent_name = event.get("agent_name", "")
+                            if agent_name:
+                                completed_agents.add(agent_name)
+                                agent_status[agent_name] = (
+                                    "error"
+                                    if event.get("error")
+                                    else "completed"
+                                )
+                                event_line.write(
+                                    f"{AGENT_LABELS.get(agent_name, agent_name)}"
+                                    " 已完成"
+                                )
+                            if set(selected_agents) <= completed_agents:
+                                node_status["report_agent"] = "running"
+                                status.update(label="正在汇总最终报告…")
+                        elif node == "report_agent":
+                            node_status["report_agent"] = "completed"
+                            event_line.write("最终报告已生成")
+
+                        render_workflow_diagram(
+                            graph_placeholder,
+                            node_status=node_status,
+                            agent_status=agent_status,
+                            selected_agents=selected_agents,
+                            paper_count=paper_count,
+                        )
+
+                    status.update(
+                        label="分析完成",
+                        state="complete",
+                        expanded=False,
+                    )
             report = state.get("final_report", "")
             messages.append({"role": "assistant", "content": report})
             st.session_state["analysis_state"] = state
-            with st.chat_message("assistant"):
-                st.markdown(report)
+            with chat_column:
+                with st.chat_message("assistant"):
+                    st.markdown(report)
 
     if "analysis_state" in st.session_state:
         st.divider()
