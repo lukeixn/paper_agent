@@ -164,6 +164,48 @@ def test_all_agents_have_builtin_skills() -> None:
     ) is None
 
 
+def test_builtin_and_external_skills_can_be_updated() -> None:
+    with TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        profiles = root / "profiles"
+        profiles.mkdir()
+        (profiles / "survey.md").write_text(
+            "# Original Survey",
+            encoding="utf-8",
+        )
+        library = AgentSkillLibrary(
+            root / "agent_skills",
+            profiles,
+        )
+        library.save(
+            "method_agent",
+            "custom.md",
+            b"# Original Method",
+        )
+
+        builtin = library.update(
+            "survey_agent",
+            "survey.md",
+            "builtin",
+            "# Updated Survey\nUse evidence clusters.",
+        )
+        external = library.update(
+            "method_agent",
+            "custom.md",
+            "external",
+            "# Updated Method\nCompare reproducibility.",
+        )
+
+        assert builtin.source == "builtin"
+        assert external.source == "external"
+        assert "Use evidence clusters" in (
+            profiles / "survey.md"
+        ).read_text(encoding="utf-8")
+        assert "Compare reproducibility" in library.combined_prompt(
+            "method_agent"
+        )
+
+
 if __name__ == "__main__":
     test_skills_are_isolated_by_agent()
     test_skill_filename_is_sanitized()
@@ -171,4 +213,5 @@ if __name__ == "__main__":
     test_builtin_innovation_skill_is_listed()
     test_external_skill_can_override_builtin_skill()
     test_all_agents_have_builtin_skills()
+    test_builtin_and_external_skills_can_be_updated()
     print("skill library tests passed")

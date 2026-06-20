@@ -233,7 +233,7 @@ def test_agent_skills_workspace() -> None:
     assert set(skill_rows["来源"].tolist()) == {"内置"}
     assert all(
         url.startswith("?skill_agent=")
-        for url in skill_rows["打开"].tolist()
+        for url in skill_rows["编辑"].tolist()
     )
 
 
@@ -255,6 +255,12 @@ def test_builtin_skill_open_link() -> None:
     )
     assert "研究方法与系统实现专家" in page_text
     assert "核心模块与信息流" in page_text
+    assert "Markdown 内容" in [
+        area.label for area in app.text_area
+    ]
+    assert "保存修改" in [
+        button.label for button in app.button
+    ]
     assert len(app.get("link_button")) == 1
 
 

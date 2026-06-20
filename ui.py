@@ -1370,7 +1370,7 @@ def render_agent_skills() -> None:
                     )
                     else "生效中"
                 ),
-                "打开": skill_view_url(skill),
+                "编辑": skill_view_url(skill),
                 "字符数": len(skill.content),
                 "保存位置": str(skill.path),
             }
@@ -1383,8 +1383,8 @@ def render_agent_skills() -> None:
             "文件": st.column_config.TextColumn(width="medium"),
             "来源": st.column_config.TextColumn(width="small"),
             "状态": st.column_config.TextColumn(width="medium"),
-            "打开": st.column_config.LinkColumn(
-                display_text="打开",
+            "编辑": st.column_config.LinkColumn(
+                display_text="编辑",
                 width="small",
             ),
             "字符数": st.column_config.NumberColumn(width="small"),
@@ -1435,12 +1435,41 @@ def requested_skill(library: AgentSkillLibrary):
 
 
 def render_skill_viewer(skill) -> None:
+    library = AgentSkillLibrary()
     source_label = "内置 Skill" if skill.source == "builtin" else "外部 Skill"
     st.caption(
         f"{AGENT_LABELS[skill.agent_name]} · {source_label} · {skill.filename}"
     )
     st.header(skill.filename)
-    st.markdown(skill.content)
+    edited_content = st.text_area(
+        "Markdown 内容",
+        value=skill.content,
+        height=520,
+        key=(
+            f"edit_skill_{skill.agent_name}_"
+            f"{skill.source}_{skill.filename}"
+        ),
+    )
+    save_clicked = st.button(
+        "保存修改",
+        type="primary",
+        width="stretch",
+        key="save_skill_changes",
+    )
+    if save_clicked:
+        try:
+            library.update(
+                skill.agent_name,
+                skill.filename,
+                skill.source,
+                edited_content,
+            )
+            st.success("Skill 已保存，下一次 Agent 执行时生效。")
+        except (ValueError, FileNotFoundError) as exc:
+            st.error(str(exc))
+
+    with st.expander("Markdown 预览"):
+        st.markdown(edited_content)
     st.divider()
     st.link_button(
         "返回 Agent Skills",

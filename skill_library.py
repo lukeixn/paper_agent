@@ -160,6 +160,31 @@ class AgentSkillLibrary:
             None,
         )
 
+    def update(
+        self,
+        agent_name: str,
+        filename: str,
+        source: str,
+        content: str,
+    ) -> AgentSkill:
+        skill = self.get_installed(agent_name, filename, source)
+        if skill is None:
+            raise FileNotFoundError("Skill 不存在或已被删除。")
+        encoded = content.encode("utf-8")
+        if len(encoded) > MAX_SKILL_BYTES:
+            raise ValueError("Skill 文件不能超过 1 MB。")
+        if not content.strip():
+            raise ValueError("Skill 文件不能为空。")
+
+        skill.path.write_text(content, encoding="utf-8")
+        return AgentSkill(
+            agent_name=skill.agent_name,
+            filename=skill.filename,
+            path=skill.path,
+            content=content,
+            source=skill.source,
+        )
+
     def combined_prompt(self, agent_name: str) -> str:
         sections = [
             f"## Skill: {skill.filename}\n{skill.content.strip()}"

@@ -53,8 +53,8 @@ agent_skills/
 - `method.md`
 - `limitation.md`
 
-UI 的 Skill 列表为每个内置或外部 Skill 提供“打开”链接，可进入只读
-Markdown 页面查看完整内容。
+UI 的 Skill 列表为每个内置或外部 Skill 提供“编辑”链接，可进入 Markdown
+编辑页修改并预览完整内容。保存后的修改会在下一次 Agent 执行时生效。
 
 如果上传文件与内置 Skill 同名，需要勾选“覆盖同名 Skill”。覆盖后只使用
 外部版本，内置版本不会同时进入提示词。删除对应的外部文件后，内置版本会
