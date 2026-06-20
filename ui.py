@@ -1240,9 +1240,9 @@ def render_agent_skills() -> None:
             st.error(str(exc))
 
     st.subheader("已安装 Skills")
-    skills = library.list()
+    skills = library.list_installed()
     if not skills:
-        st.info("尚未安装外部 Skill。")
+        st.info("尚未安装 Skill。")
         return
 
     st.dataframe(
@@ -1250,6 +1250,7 @@ def render_agent_skills() -> None:
             {
                 "Agent": AGENT_LABELS[skill.agent_name],
                 "文件": skill.filename,
+                "来源": "内置" if skill.source == "builtin" else "外部",
                 "字符数": len(skill.content),
                 "保存位置": str(skill.path),
             }
@@ -1260,12 +1261,13 @@ def render_agent_skills() -> None:
         column_config={
             "Agent": st.column_config.TextColumn(width="medium"),
             "文件": st.column_config.TextColumn(width="medium"),
+            "来源": st.column_config.TextColumn(width="small"),
             "字符数": st.column_config.NumberColumn(width="small"),
             "保存位置": st.column_config.TextColumn(width="large"),
         },
     )
 
-    selected_agent_skills = library.list(agent_name)
+    selected_agent_skills = library.list_installed(agent_name)
     if selected_agent_skills:
         with st.expander(f"预览 {AGENT_LABELS[agent_name]} 的 Skills"):
             selected_filename = st.selectbox(

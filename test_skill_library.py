@@ -67,8 +67,32 @@ def test_agent_loads_its_external_skills() -> None:
         assert "Always compare publication years" in agent.profile
 
 
+def test_builtin_innovation_skill_is_listed() -> None:
+    with TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        profiles = root / "profiles"
+        profiles.mkdir()
+        (profiles / "innovation.md").write_text(
+            "# Built-in Innovation\nReview novelty.",
+            encoding="utf-8",
+        )
+        library = AgentSkillLibrary(
+            root / "agent_skills",
+            profiles,
+        )
+
+        skills = library.list_installed("innovation_agent")
+
+        assert len(skills) == 1
+        assert skills[0].filename == "innovation.md"
+        assert skills[0].source == "builtin"
+        assert "Review novelty" in skills[0].content
+        assert library.combined_prompt("innovation_agent") == ""
+
+
 if __name__ == "__main__":
     test_skills_are_isolated_by_agent()
     test_skill_filename_is_sanitized()
     test_agent_loads_its_external_skills()
+    test_builtin_innovation_skill_is_listed()
     print("skill library tests passed")

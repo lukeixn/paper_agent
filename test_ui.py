@@ -192,6 +192,10 @@ def test_agent_skills_workspace() -> None:
         "选择 Markdown Skill"
     ]
     assert "安装 Skill" in [button.label for button in app.button]
+    assert len(app.dataframe) == 1
+    skill_rows = app.dataframe[0].value
+    assert "innovation.md" in skill_rows["文件"].tolist()
+    assert "内置" in skill_rows["来源"].tolist()
 
 
 if __name__ == "__main__":

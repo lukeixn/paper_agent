@@ -12,6 +12,9 @@ AGENT_NAMES = {
     "limitation_agent",
 }
 MAX_SKILL_BYTES = 1024 * 1024
+BUILTIN_SKILLS = {
+    "innovation_agent": ["innovation.md"],
+}
 
 
 @dataclass(frozen=True)
@@ -20,11 +23,17 @@ class AgentSkill:
     filename: str
     path: Path
     content: str
+    source: str = "external"
 
 
 class AgentSkillLibrary:
-    def __init__(self, root: str | Path = "agent_skills"):
+    def __init__(
+        self,
+        root: str | Path = "agent_skills",
+        builtin_root: str | Path = "profiles",
+    ):
         self.root = Path(root)
+        self.builtin_root = Path(builtin_root)
 
     def agent_dir(self, agent_name: str) -> Path:
         if agent_name not in AGENT_NAMES:
@@ -80,6 +89,34 @@ class AgentSkillLibrary:
                     )
                 )
         return skills
+
+    def list_builtin(
+        self,
+        agent_name: str | None = None,
+    ) -> list[AgentSkill]:
+        agent_names = [agent_name] if agent_name else sorted(AGENT_NAMES)
+        skills: list[AgentSkill] = []
+        for name in agent_names:
+            for filename in BUILTIN_SKILLS.get(name, []):
+                path = self.builtin_root / filename
+                if not path.exists():
+                    continue
+                skills.append(
+                    AgentSkill(
+                        agent_name=name,
+                        filename=path.name,
+                        path=path,
+                        content=path.read_text(encoding="utf-8"),
+                        source="builtin",
+                    )
+                )
+        return skills
+
+    def list_installed(
+        self,
+        agent_name: str | None = None,
+    ) -> list[AgentSkill]:
+        return self.list_builtin(agent_name) + self.list(agent_name)
 
     def combined_prompt(self, agent_name: str) -> str:
         sections = [
