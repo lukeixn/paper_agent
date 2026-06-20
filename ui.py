@@ -43,14 +43,26 @@ def current_workflow():
 
 
 def _node_html(
+    code: str,
     title: str,
     detail: str,
     status: str,
 ) -> str:
+    status_labels = {
+        "pending": "WAIT",
+        "running": "LIVE",
+        "completed": "DONE",
+        "error": "ERR",
+        "disabled": "SKIP",
+    }
     return (
-        f'<div class="workflow-node {status}">'
+        f'<div class="flow-node {status}">'
+        f'<div class="flow-code">{html.escape(code)}</div>'
+        '<div class="flow-copy">'
         f"<strong>{html.escape(title)}</strong>"
-        f"{html.escape(detail)}"
+        f"<span>{html.escape(detail)}</span>"
+        "</div>"
+        f'<div class="flow-state"><i></i>{status_labels.get(status, "WAIT")}</div>'
         "</div>"
     )
 
@@ -73,8 +85,15 @@ def render_workflow_diagram(
         if node_status.get("retrieve") == "completed"
         else WORKFLOW_LABELS["retrieve"][1]
     )
+    node_codes = {
+        "contextualize": "01",
+        "retrieve": "02",
+        "route": "03",
+        "report_agent": "05",
+    }
     nodes = {
         name: _node_html(
+            node_codes[name],
             WORKFLOW_LABELS[name][0],
             retrieve_detail
             if name == "retrieve"
@@ -98,24 +117,100 @@ def render_workflow_diagram(
             detail = "执行失败"
         else:
             detail = "等待路由"
-        agent_nodes.append(_node_html(label, detail, status))
+        agent_nodes.append(
+            _node_html(
+                f"A{len(agent_nodes) + 1}",
+                label,
+                detail,
+                status,
+            )
+        )
+
+    running_names = [
+        WORKFLOW_LABELS[name][0]
+        for name, status in node_status.items()
+        if status == "running" and name in WORKFLOW_LABELS
+    ]
+    running_agents = [
+        AGENT_LABELS[name]
+        for name, status in agent_status.items()
+        if status == "running" and name in AGENT_LABELS
+    ]
+    if running_agents:
+        live_text = f"{len(running_agents)} AGENTS ACTIVE"
+    elif running_names:
+        live_text = running_names[0]
+    elif node_status.get("report_agent") == "completed":
+        live_text = "TRACE COMPLETE"
+    else:
+        live_text = "SYSTEM READY"
+
+    selected_count = len(selected_agents)
+    connector_status = {
+        "after_context": (
+            "active"
+            if node_status.get("contextualize") == "completed"
+            else ""
+        ),
+        "after_retrieve": (
+            "active"
+            if node_status.get("retrieve") == "completed"
+            else ""
+        ),
+        "after_route": (
+            "active"
+            if node_status.get("route") == "completed"
+            else ""
+        ),
+        "after_agents": (
+            "active"
+            if selected_agents
+            and all(
+                agent_status.get(name) in {"completed", "error"}
+                for name in selected_agents
+            )
+            else ""
+        ),
+    }
 
     placeholder.markdown(
         f"""
         <div class="workflow-panel">
-            <div class="workflow-heading">实时执行图</div>
-            <div class="workflow-caption">节点状态会随 LangGraph 实时更新</div>
-            {nodes["contextualize"]}
-            <div class="workflow-connector"></div>
-            {nodes["retrieve"]}
-            <div class="workflow-connector"></div>
-            {nodes["route"]}
-            <div class="workflow-connector"></div>
-            <div class="workflow-agents">
-                {''.join(agent_nodes)}
+            <div class="flow-grid"></div>
+            <div class="flow-header">
+                <div>
+                    <span class="flow-eyebrow">LANGGRAPH / LIVE TRACE</span>
+                    <div class="workflow-heading">实时执行图</div>
+                </div>
+                <div class="flow-live"><i></i>{html.escape(live_text)}</div>
             </div>
-            <div class="workflow-connector"></div>
+            <div class="flow-metrics">
+                <span><b>{paper_count:02d}</b> PAPERS</span>
+                <span><b>{selected_count:02d}</b> AGENTS</span>
+            </div>
+            <div class="flow-track">
+            {nodes["contextualize"]}
+            <div class="flow-connector {connector_status["after_context"]}"><i></i></div>
+            {nodes["retrieve"]}
+            <div class="flow-connector {connector_status["after_retrieve"]}"><i></i></div>
+            {nodes["route"]}
+            <div class="flow-connector {connector_status["after_route"]}"><i></i></div>
+            <div class="flow-parallel">
+                <div class="flow-parallel-title">
+                    <span>04</span>
+                    PARALLEL EXECUTION
+                </div>
+                <div class="workflow-agents">
+                {''.join(agent_nodes)}
+                </div>
+            </div>
+            <div class="flow-connector {connector_status["after_agents"]}"><i></i></div>
             {nodes["report_agent"]}
+            </div>
+            <div class="flow-footer">
+                <span>STATE STREAM</span>
+                <span>LANGGRAPH CONNECTED</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -201,74 +296,245 @@ def apply_styles() -> None:
         .workflow-panel {
             position: sticky;
             top: 1rem;
-            border-left: 1px solid #dde3df;
-            padding-left: 1.25rem;
+            overflow: hidden;
+            border: 1px solid #263532;
+            border-radius: 8px;
+            padding: 1rem;
+            background: #101715;
+            color: #d9e4e0;
+            box-shadow:
+                0 14px 34px rgba(17, 31, 27, .12),
+                inset 0 1px 0 rgba(255, 255, 255, .04);
+        }
+        .flow-grid {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: .16;
+            background-image:
+                linear-gradient(rgba(112, 213, 186, .14) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(112, 213, 186, .14) 1px, transparent 1px);
+            background-size: 22px 22px;
+            mask-image: linear-gradient(to bottom, black, transparent 78%);
+        }
+        .flow-header {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: .75rem;
+            padding-bottom: .8rem;
+            border-bottom: 1px solid #263532;
+        }
+        .flow-eyebrow {
+            display: block;
+            color: #6b8b82;
+            font-family: "Consolas", monospace;
+            font-size: .62rem;
+            letter-spacing: .08rem;
+            margin-bottom: .2rem;
         }
         .workflow-heading {
-            color: #26332f;
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: .25rem;
+            color: #f0f7f4;
+            font-size: 1.05rem;
+            font-weight: 680;
         }
-        .workflow-caption {
-            color: #73807b;
-            font-size: .78rem;
-            margin-bottom: .9rem;
+        .flow-live {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+            color: #7b9b92;
+            font-family: "Consolas", monospace;
+            font-size: .6rem;
+            white-space: nowrap;
         }
-        .workflow-node {
-            border: 1px solid #d6ddd9;
+        .flow-live i,
+        .flow-state i {
+            width: .42rem;
+            height: .42rem;
+            display: inline-block;
+            border-radius: 50%;
+            background: #52645f;
+        }
+        .flow-live i {
+            background: #4be0b7;
+            box-shadow: 0 0 10px rgba(75, 224, 183, .7);
+        }
+        .flow-metrics {
+            position: relative;
+            display: flex;
+            gap: 1rem;
+            padding: .7rem 0 .65rem;
+            color: #668078;
+            font-family: "Consolas", monospace;
+            font-size: .6rem;
+        }
+        .flow-metrics b {
+            color: #9db8b0;
+            font-size: .72rem;
+            font-weight: 600;
+        }
+        .flow-track {
+            position: relative;
+        }
+        .flow-node {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+            gap: .58rem;
+            align-items: center;
+            min-height: 3.15rem;
+            border: 1px solid #293a36;
             border-radius: 6px;
-            padding: .62rem .72rem;
-            background: #f7f9f8;
-            color: #53605c;
-            font-size: .84rem;
-            line-height: 1.25;
+            padding: .52rem .62rem;
+            background: rgba(18, 28, 25, .88);
+            transition: border-color .25s ease, background .25s ease;
         }
-        .workflow-node strong {
+        .flow-code {
+            color: #526b64;
+            font-family: "Consolas", monospace;
+            font-size: .66rem;
+        }
+        .flow-copy {
+            min-width: 0;
+        }
+        .flow-copy strong {
             display: block;
-            color: inherit;
-            font-size: .87rem;
-            margin-bottom: .16rem;
+            color: #dce7e3;
+            font-size: .78rem;
+            font-weight: 620;
+            margin-bottom: .1rem;
         }
-        .workflow-node.completed {
-            border-color: #6eb49f;
-            background: #eaf5f1;
-            color: #176b56;
+        .flow-copy span {
+            display: block;
+            overflow: hidden;
+            color: #718a82;
+            font-size: .64rem;
+            line-height: 1.3;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .workflow-node.running {
-            border-color: #d99b35;
-            background: #fff4df;
-            color: #85540d;
-            box-shadow: 0 0 0 2px rgba(217, 155, 53, .12);
-            animation: workflow-pulse 1.35s ease-in-out infinite;
+        .flow-state {
+            display: flex;
+            align-items: center;
+            gap: .28rem;
+            color: #536a63;
+            font-family: "Consolas", monospace;
+            font-size: .56rem;
         }
-        .workflow-node.error {
-            border-color: #d96b62;
-            background: #fff0ee;
-            color: #9b312a;
+        .flow-node.completed {
+            border-color: #2d6859;
+            background: rgba(25, 63, 52, .48);
         }
-        .workflow-node.disabled {
+        .flow-node.completed .flow-code,
+        .flow-node.completed .flow-state {
+            color: #69d5b6;
+        }
+        .flow-node.completed .flow-state i {
+            background: #47d4ad;
+            box-shadow: 0 0 8px rgba(71, 212, 173, .55);
+        }
+        .flow-node.running {
+            border-color: #4ba991;
+            background: rgba(28, 74, 61, .48);
+            box-shadow:
+                inset 3px 0 0 #4be0b7,
+                0 0 18px rgba(75, 224, 183, .08);
+        }
+        .flow-node.running .flow-code,
+        .flow-node.running .flow-state {
+            color: #85f0d2;
+        }
+        .flow-node.running .flow-state i {
+            background: #61eac5;
+            box-shadow: 0 0 10px rgba(97, 234, 197, .8);
+            animation: workflow-pulse 1.15s ease-in-out infinite;
+        }
+        .flow-node.error {
+            border-color: #7f3f45;
+            background: rgba(90, 38, 43, .38);
+        }
+        .flow-node.error .flow-state,
+        .flow-node.error .flow-code {
+            color: #ff8e91;
+        }
+        .flow-node.error .flow-state i {
+            background: #ff7378;
+        }
+        .flow-node.disabled {
             border-style: dashed;
-            background: #fafbfa;
-            color: #9aa49f;
+            opacity: .42;
         }
-        .workflow-connector {
+        .flow-connector {
+            position: relative;
             width: 2px;
-            height: .7rem;
-            background: #cbd4d0;
+            height: .8rem;
+            background: #2b3c37;
             margin: 0 auto;
+        }
+        .flow-connector i {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 0;
+            background: #49d6af;
+            box-shadow: 0 0 8px rgba(73, 214, 175, .6);
+            transition: height .3s ease;
+        }
+        .flow-connector.active i {
+            height: 100%;
+        }
+        .flow-parallel {
+            border: 1px solid #293a36;
+            border-radius: 6px;
+            padding: .55rem;
+            background: rgba(13, 21, 19, .72);
+        }
+        .flow-parallel-title {
+            display: flex;
+            gap: .45rem;
+            align-items: center;
+            color: #607b73;
+            font-family: "Consolas", monospace;
+            font-size: .58rem;
+            margin-bottom: .48rem;
+        }
+        .flow-parallel-title span {
+            color: #526b64;
         }
         .workflow-agents {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: .45rem;
+            gap: .38rem;
         }
-        .workflow-agents .workflow-node {
-            min-height: 3.3rem;
+        .workflow-agents .flow-node {
+            grid-template-columns: 1.3rem minmax(0, 1fr);
+            gap: .35rem;
+            min-height: 3rem;
+            padding: .46rem .5rem;
+        }
+        .workflow-agents .flow-state {
+            grid-column: 2;
+        }
+        .workflow-agents .flow-copy span {
+            white-space: normal;
+        }
+        .flow-footer {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            gap: .5rem;
+            border-top: 1px solid #263532;
+            color: #4f6861;
+            font-family: "Consolas", monospace;
+            font-size: .52rem;
+            margin-top: .75rem;
+            padding-top: .65rem;
         }
         @keyframes workflow-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .72; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .45; transform: scale(.72); }
         }
         </style>
         """,
