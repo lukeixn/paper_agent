@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import html
 import importlib
 import inspect
@@ -27,6 +28,31 @@ WORKFLOW_LABELS = {
     "route": ("任务路由", "选择需要参与的研究 Agent"),
     "report_agent": ("报告汇总", "综合各 Agent 结果生成回答"),
 }
+
+TOPOLOGY_SVG_STYLE = """
+.topo-boundary{fill:rgba(8,25,47,.48);stroke:#52759b;stroke-width:1;stroke-dasharray:4 5}
+.topo-section,.topo-foot{fill:#6689af;font-family:Consolas,monospace;font-size:9px;letter-spacing:1.5px;text-anchor:middle}
+.topo-foot{fill:#42678e;font-size:8px}
+.topo-link{fill:none;stroke:#31577f;stroke-width:1.4;stroke-dasharray:4 5;marker-end:url(#topology-arrow)}
+.topo-link.active{stroke:#5ab3ff;stroke-width:1.8;stroke-dasharray:7 6;filter:url(#topology-glow);animation:flow 1.1s linear infinite}
+.topo-link.branch,.topo-link.merge{marker-end:none}
+.topo-link.disabled{opacity:.15}
+.topo-disc{fill:#102947;stroke:#426f9f;stroke-width:1.3}
+.topo-halo{fill:none;stroke:transparent;stroke-width:2}
+.topo-code,.topo-router-title,.topo-router-sub,.topo-label,.topo-agent-label{text-anchor:middle;dominant-baseline:middle;font-family:Consolas,"Microsoft YaHei",sans-serif}
+.topo-code{fill:#8ab4df;font-size:11px;font-weight:700}
+.topo-label,.topo-agent-label{fill:#83a4c5;font-size:10px}
+.topo-router-title{fill:#b9d9f7;font-size:11px;font-weight:700;letter-spacing:.8px}
+.topo-router-sub{fill:#6f96bd;font-size:7px;letter-spacing:.6px}
+.completed .topo-disc{fill:#123a65;stroke:#55a8f5}
+.running .topo-disc{fill:#154775;stroke:#7cc5ff;stroke-width:2;filter:url(#topology-glow)}
+.running .topo-halo{stroke:#4da9f7;opacity:.7;animation:pulse 1.25s ease-out infinite}
+.running text,.completed text{fill:#d9efff}
+.topo-agent.disabled{opacity:.25}
+.error .topo-disc{fill:#55243a;stroke:#e16d91}
+@keyframes flow{to{stroke-dashoffset:-26}}
+@keyframes pulse{0%{opacity:.75}100%{opacity:0}}
+"""
 
 
 def current_workflow():
@@ -143,8 +169,7 @@ def render_workflow_diagram(
         for name in AGENT_LABELS
     }
 
-    placeholder.markdown(
-        f"""
+    panel_markup = f"""
         <div class="workflow-panel">
             <div class="topology-header">
                 <div>
@@ -153,8 +178,10 @@ def render_workflow_diagram(
                 </div>
                 <div class="topology-live"><i></i>{html.escape(live_text)}</div>
             </div>
-            <svg class="topology-map" viewBox="0 0 420 610"
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="topology-map" viewBox="0 0 420 610"
                  role="img" aria-label="LangGraph 多 Agent 实时执行拓扑">
+                <style>{TOPOLOGY_SVG_STYLE}</style>
                 <defs>
                     <pattern id="topology-grid" width="24" height="24"
                              patternUnits="userSpaceOnUse">
@@ -253,7 +280,25 @@ def render_workflow_diagram(
                 </text>
             </svg>
         </div>
-        """,
+        """
+    svg_start = panel_markup.index("<svg")
+    svg_end = panel_markup.index("</svg>") + len("</svg>")
+    svg_markup = panel_markup[svg_start:svg_end]
+    svg_uri = base64.b64encode(
+        svg_markup.encode("utf-8")
+    ).decode("ascii")
+    image_markup = (
+        '<img class="topology-image" '
+        'alt="LangGraph 多 Agent 实时执行拓扑" '
+        f'src="data:image/svg+xml;base64,{svg_uri}">'
+    )
+    panel_markup = (
+        panel_markup[:svg_start]
+        + image_markup
+        + panel_markup[svg_end:]
+    )
+    placeholder.markdown(
+        panel_markup,
         unsafe_allow_html=True,
     )
 
@@ -386,12 +431,13 @@ def apply_styles() -> None:
             background: #54a8ff;
             box-shadow: 0 0 10px rgba(84, 168, 255, .85);
         }
-        .topology-map {
+        .topology-image {
             display: block;
             width: 100%;
             height: auto;
-            max-height: calc(100vh - 13rem);
-            min-height: 31rem;
+            aspect-ratio: 420 / 610;
+            object-fit: contain;
+            max-height: calc(100vh - 12rem);
             margin-top: .35rem;
         }
         .topo-boundary {
@@ -1076,7 +1122,7 @@ def main() -> None:
         st.rerun()
 
     chat_column, graph_column = st.columns(
-        [2.15, 1],
+        [1.7, 1],
         gap="large",
     )
     graph_placeholder = graph_column.empty()

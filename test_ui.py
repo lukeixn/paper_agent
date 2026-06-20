@@ -35,9 +35,9 @@ def test_offline_analysis_ui() -> None:
 
     assert len(app.exception) == 0
     assert any(
-        "topology-map" in item.value
-        and "ROUTER" in item.value
-        and "PARALLEL AGENTS" in item.value
+        "topology-image" in item.value
+        and "data:image/svg+xml;base64" in item.value
+        and "<svg" not in item.value
         for item in app.markdown
     )
     assert [tab.label for tab in app.tabs] == [
