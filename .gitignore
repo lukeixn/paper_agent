@@ -1,7 +1,10 @@
 __pycache__/
+**/__pycache__/
 .git/
 .baseline_git/
 *.py[cod]
+*.log
+tempCodeRunnerFile.py
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -12,4 +15,5 @@ env/
 reports/mamba_langgraph.md
 streamlit-ui.log
 streamlit-ui.err.log
+/report
 .codex-presentations/
