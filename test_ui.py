@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import re
+
 import ui
 from streamlit.testing.v1 import AppTest
 
@@ -9,6 +12,29 @@ def test_workflow_hot_reload_guard() -> None:
     runner = module.run_pipeline_state
     assert "conversation_history" in runner.__annotations__
     assert hasattr(module, "stream_pipeline_state")
+
+
+def test_topology_layout_matches_selected_agent_count() -> None:
+    assert ui.topology_agent_layout([]) == []
+    assert ui.topology_agent_layout(["survey_agent"]) == [
+        ("survey_agent", 210, 390)
+    ]
+    assert [x for _, x, _ in ui.topology_agent_layout(
+        ["survey_agent", "method_agent", "limitation_agent"]
+    )] == [100, 210, 320]
+
+
+def topology_svg(app: AppTest) -> str:
+    markup = next(
+        item.value
+        for item in app.markdown
+        if "data:image/svg+xml;base64" in item.value
+    )
+    encoded = re.search(
+        r"data:image/svg\+xml;base64,([^\"']+)",
+        markup,
+    ).group(1)
+    return base64.b64decode(encoded).decode("utf-8")
 
 
 def test_offline_analysis_ui() -> None:
@@ -51,6 +77,12 @@ def test_offline_analysis_ui() -> None:
     assert 1 <= int(metrics["检索论文"]) <= 10
     assert metrics["执行 Agent"] == "2"
     assert metrics["路由"] == "multi_agent"
+    svg = topology_svg(app)
+    assert "创新分析" in svg
+    assert "局限与机会" in svg
+    assert "研究综述" not in svg
+    assert "方法比较" not in svg
+    assert svg.count('<g class="topo-agent') == 2
 
     state = app.session_state["analysis_state"]
     assert state["global_context"]["model_config"]["api_key"] == ""
@@ -105,6 +137,7 @@ def test_search_workspace_contains_online_and_local_import() -> None:
 
 if __name__ == "__main__":
     test_workflow_hot_reload_guard()
+    test_topology_layout_matches_selected_agent_count()
     test_offline_analysis_ui()
     test_library_workspace_is_read_only_management()
     test_search_workspace_contains_online_and_local_import()

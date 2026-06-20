@@ -33,6 +33,7 @@ TOPOLOGY_SVG_STYLE = """
 .topo-boundary{fill:rgba(8,25,47,.48);stroke:#52759b;stroke-width:1;stroke-dasharray:4 5}
 .topo-section,.topo-foot{fill:#6689af;font-family:Consolas,monospace;font-size:9px;letter-spacing:1.5px;text-anchor:middle}
 .topo-foot{fill:#42678e;font-size:8px}
+.topo-empty{fill:#42678e;font-family:Consolas,monospace;font-size:9px;letter-spacing:1.2px;text-anchor:middle}
 .topo-link{fill:none;stroke:#31577f;stroke-width:1.4;stroke-dasharray:4 5;marker-end:url(#topology-arrow)}
 .topo-link.active{stroke:#5ab3ff;stroke-width:1.8;stroke-dasharray:7 6;filter:url(#topology-glow);animation:flow 1.1s linear infinite}
 .topo-link.branch,.topo-link.merge{marker-end:none}
@@ -81,6 +82,22 @@ def _topology_status(
     } else "pending"
 
 
+def topology_agent_layout(
+    selected_agents: list[str],
+) -> list[tuple[str, int, int]]:
+    count = len(selected_agents)
+    x_positions = {
+        1: [210],
+        2: [140, 280],
+        3: [100, 210, 320],
+        4: [72, 164, 256, 348],
+    }.get(count, [])
+    return [
+        (agent_name, x_positions[index], 390)
+        for index, agent_name in enumerate(selected_agents)
+    ]
+
+
 def render_workflow_diagram(
     placeholder,
     *,
@@ -92,20 +109,41 @@ def render_workflow_diagram(
     node_status = node_status or {}
     agent_status = agent_status or {}
     selected_agents = selected_agents or []
-    selected_set = set(selected_agents)
+    selected_count = len(selected_agents)
+    context_status = _topology_status(
+        node_status.get("contextualize", "pending")
+    )
+    retrieve_status = _topology_status(
+        node_status.get("retrieve", "pending")
+    )
+    route_status = _topology_status(node_status.get("route", "pending"))
+    report_status = _topology_status(
+        node_status.get("report_agent", "pending")
+    )
+    context_line = (
+        "active" if context_status == "completed" else "pending"
+    )
+    retrieve_line = (
+        "active" if retrieve_status == "completed" else "pending"
+    )
+    route_line = "active" if route_status == "completed" else "pending"
 
-    agent_layout = [
-        ("survey_agent", 90, 365),
-        ("innovation_agent", 170, 415),
-        ("method_agent", 250, 365),
-        ("limitation_agent", 330, 415),
-    ]
     agent_nodes = []
-    for index, (agent_name, x, y) in enumerate(agent_layout, start=1):
+    branch_links = []
+    merge_links = []
+    for index, (agent_name, x, y) in enumerate(
+        topology_agent_layout(selected_agents),
+        start=1,
+    ):
         label = AGENT_LABELS[agent_name]
         status = agent_status.get(agent_name, "pending")
-        if selected_set and agent_name not in selected_set:
-            status = "disabled"
+        merge_status = (
+            "error"
+            if status == "error"
+            else "active"
+            if status == "completed"
+            else "pending"
+        )
         agent_nodes.append(
             f"""
             <g class="topo-agent {_topology_status(status)}">
@@ -116,6 +154,18 @@ def render_workflow_diagram(
                     {html.escape(label)}
                 </text>
             </g>
+            """
+        )
+        branch_links.append(
+            f"""
+            <path class="topo-link branch {route_line}"
+                  d="M210 296 C210 325 {x} 330 {x} {y - 28}"></path>
+            """
+        )
+        merge_links.append(
+            f"""
+            <path class="topo-link merge {merge_status}"
+                  d="M{x} {y + 28} C{x} 470 210 475 210 505"></path>
             """
         )
 
@@ -138,44 +188,15 @@ def render_workflow_diagram(
     else:
         live_text = "SYSTEM READY"
 
-    selected_count = len(selected_agents)
-    context_status = _topology_status(
-        node_status.get("contextualize", "pending")
+    empty_agent_state = (
+        ""
+        if selected_agents
+        else """
+        <text class="topo-empty" x="210" y="395">
+            WAITING FOR ROUTER
+        </text>
+        """
     )
-    retrieve_status = _topology_status(
-        node_status.get("retrieve", "pending")
-    )
-    route_status = _topology_status(node_status.get("route", "pending"))
-    report_status = _topology_status(
-        node_status.get("report_agent", "pending")
-    )
-    context_line = (
-        "active" if context_status == "completed" else "pending"
-    )
-    retrieve_line = (
-        "active" if retrieve_status == "completed" else "pending"
-    )
-    route_line = "active" if route_status == "completed" else "pending"
-    agent_link_status = {
-        name: (
-            "disabled"
-            if selected_set and name not in selected_set
-            else route_line
-        )
-        for name in AGENT_LABELS
-    }
-    agent_merge_status = {
-        name: (
-            "disabled"
-            if selected_set and name not in selected_set
-            else "error"
-            if agent_status.get(name) == "error"
-            else "active"
-            if agent_status.get(name) == "completed"
-            else "pending"
-        )
-        for name in AGENT_LABELS
-    }
 
     panel_markup = f"""
         <div class="workflow-panel">
@@ -256,25 +277,10 @@ def render_workflow_diagram(
                     PARALLEL AGENTS
                 </text>
 
-                <path class="topo-link branch {agent_link_status["survey_agent"]}"
-                      d="M184 286 C165 314 120 320 94 338"></path>
-                <path class="topo-link branch {agent_link_status["innovation_agent"]}"
-                      d="M198 296 C190 330 178 353 172 387"></path>
-                <path class="topo-link branch {agent_link_status["method_agent"]}"
-                      d="M222 296 C230 330 242 328 248 338"></path>
-                <path class="topo-link branch {agent_link_status["limitation_agent"]}"
-                      d="M236 286 C260 316 304 354 326 388"></path>
-
+                {''.join(branch_links)}
                 {''.join(agent_nodes)}
-
-                <path class="topo-link merge {agent_merge_status["survey_agent"]}"
-                      d="M90 389 C110 472 168 478 190 505"></path>
-                <path class="topo-link merge {agent_merge_status["innovation_agent"]}"
-                      d="M170 439 C178 470 188 486 198 505"></path>
-                <path class="topo-link merge {agent_merge_status["method_agent"]}"
-                      d="M250 389 C245 454 232 483 220 505"></path>
-                <path class="topo-link merge {agent_merge_status["limitation_agent"]}"
-                      d="M330 439 C300 474 254 486 230 510"></path>
+                {empty_agent_state}
+                {''.join(merge_links)}
 
                 <g class="topo-report {report_status}">
                     <circle class="topo-halo" cx="210" cy="545" r="42"></circle>
