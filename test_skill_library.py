@@ -63,7 +63,7 @@ def test_agent_loads_its_external_skills() -> None:
         finally:
             agent_module.PROJECT_ROOT = original_root
 
-        assert "External Agent Skills" in agent.profile
+        assert "Agent Skills" in agent.profile
         assert "Always compare publication years" in agent.profile
 
 
@@ -87,7 +87,48 @@ def test_builtin_innovation_skill_is_listed() -> None:
         assert skills[0].filename == "innovation.md"
         assert skills[0].source == "builtin"
         assert "Review novelty" in skills[0].content
-        assert library.combined_prompt("innovation_agent") == ""
+        assert "Review novelty" in library.combined_prompt(
+            "innovation_agent"
+        )
+
+
+def test_external_skill_can_override_builtin_skill() -> None:
+    with TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        profiles = root / "profiles"
+        profiles.mkdir()
+        (profiles / "innovation.md").write_text(
+            "# Built-in\nUse the original instruction.",
+            encoding="utf-8",
+        )
+        library = AgentSkillLibrary(
+            root / "agent_skills",
+            profiles,
+        )
+
+        try:
+            library.save(
+                "innovation_agent",
+                "innovation.md",
+                b"# Override\nUse the replacement instruction.",
+            )
+            raise AssertionError("Expected overwrite confirmation")
+        except FileExistsError:
+            pass
+
+        library.save(
+            "innovation_agent",
+            "innovation.md",
+            b"# Override\nUse the replacement instruction.",
+            overwrite=True,
+        )
+        prompt = library.combined_prompt("innovation_agent")
+        effective = library.list_effective("innovation_agent")
+
+        assert "Use the replacement instruction" in prompt
+        assert "Use the original instruction" not in prompt
+        assert len(effective) == 1
+        assert effective[0].source == "external"
 
 
 if __name__ == "__main__":
@@ -95,4 +136,5 @@ if __name__ == "__main__":
     test_skill_filename_is_sanitized()
     test_agent_loads_its_external_skills()
     test_builtin_innovation_skill_is_listed()
+    test_external_skill_can_override_builtin_skill()
     print("skill library tests passed")

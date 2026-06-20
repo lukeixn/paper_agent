@@ -21,20 +21,11 @@ class BaseAgent(ABC):
         self.profile = self.load_profile()
 
     def load_profile(self) -> str:
-        sections = []
-        if self.profile_path:
-            path = PROJECT_ROOT / self.profile_path
-            if path.exists():
-                sections.append(path.read_text(encoding="utf8").strip())
-
-        external_skills = AgentSkillLibrary(
-            PROJECT_ROOT / "agent_skills"
+        skills = AgentSkillLibrary(
+            PROJECT_ROOT / "agent_skills",
+            PROJECT_ROOT / "profiles",
         ).combined_prompt(self.name)
-        if external_skills:
-            sections.append(
-                "# External Agent Skills\n" + external_skills
-            )
-        return "\n\n".join(section for section in sections if section)
+        return "# Agent Skills\n" + skills if skills else ""
 
     def __call__(self, task: AgentTaskState) -> AgentOutput:
         try:

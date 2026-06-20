@@ -67,7 +67,11 @@ class AgentSkillLibrary:
         directory = self.agent_dir(agent_name)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / self.safe_filename(filename)
-        if path.exists() and not overwrite:
+        builtin_names = {
+            skill.filename for skill in self.list_builtin(agent_name)
+        }
+        conflicts_with_builtin = path.name in builtin_names
+        if (path.exists() or conflicts_with_builtin) and not overwrite:
             raise FileExistsError(f"{path.name} 已存在。")
         path.write_text(text, encoding="utf-8")
         return AgentSkill(agent_name, path.name, path, text)
@@ -118,9 +122,22 @@ class AgentSkillLibrary:
     ) -> list[AgentSkill]:
         return self.list_builtin(agent_name) + self.list(agent_name)
 
+    def list_effective(
+        self,
+        agent_name: str,
+    ) -> list[AgentSkill]:
+        external = self.list(agent_name)
+        external_names = {skill.filename for skill in external}
+        builtin = [
+            skill
+            for skill in self.list_builtin(agent_name)
+            if skill.filename not in external_names
+        ]
+        return builtin + external
+
     def combined_prompt(self, agent_name: str) -> str:
         sections = [
             f"## Skill: {skill.filename}\n{skill.content.strip()}"
-            for skill in self.list(agent_name)
+            for skill in self.list_effective(agent_name)
         ]
         return "\n\n".join(sections)
