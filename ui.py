@@ -612,21 +612,29 @@ def main() -> None:
         render_academic_search(settings)
         return
 
-    query = st.text_area(
-        "研究问题",
-        placeholder="例如：Mamba 在长视频理解中的优势、局限和研究机会是什么？",
-        height=120,
-    )
+    if "chat_messages" not in st.session_state:
+        st.session_state["chat_messages"] = []
 
-    run_clicked = st.button(
-        "开始分析",
-        type="primary",
-        width="stretch",
+    if st.sidebar.button("新建会话", width="stretch"):
+        st.session_state["chat_messages"] = []
+        st.session_state.pop("analysis_state", None)
+        st.rerun()
+
+    messages = st.session_state["chat_messages"]
+    if not messages:
+        st.info(
+            "输入第一个研究问题。之后可以直接追问，Agent 会结合当前会话继续分析。"
+        )
+
+    for message in messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    query = st.chat_input(
+        "输入研究问题，或继续追问上一轮结果",
     )
-    if run_clicked:
-        if not query.strip():
-            st.warning("请先输入研究问题。")
-        elif settings["provider"] != "offline" and not (
+    if query:
+        if settings["provider"] != "offline" and not (
             settings["api_key"]
             or os.getenv(
                 "DEEPSEEK_API_KEY"
@@ -636,7 +644,12 @@ def main() -> None:
         ):
             st.warning("请输入 API Key，或选择离线模式。")
         else:
+            history = list(messages)
+            messages.append({"role": "user", "content": query.strip()})
+            with st.chat_message("user"):
+                st.markdown(query.strip())
             with st.status("正在运行论文分析工作流…", expanded=True) as status:
+                st.write("理解连续对话")
                 st.write("检索相关论文")
                 st.write("路由分析任务")
                 state = run_pipeline_state(
@@ -644,9 +657,14 @@ def main() -> None:
                     top_k=settings["top_k"],
                     model_config=runtime_model_config(settings),
                     require_langgraph=True,
+                    conversation_history=history,
                 )
                 status.update(label="分析完成", state="complete", expanded=False)
+            report = state.get("final_report", "")
+            messages.append({"role": "assistant", "content": report})
             st.session_state["analysis_state"] = state
+            with st.chat_message("assistant"):
+                st.markdown(report)
 
     if "analysis_state" in st.session_state:
         st.divider()

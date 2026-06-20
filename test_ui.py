@@ -8,14 +8,18 @@ def test_offline_analysis_ui() -> None:
     app.run()
 
     assert len(app.exception) == 0
-    assert [button.label for button in app.button] == ["开始分析"]
-    assert [text_area.label for text_area in app.text_area] == ["研究问题"]
+    assert [button.label for button in app.button] == ["新建会话"]
+    assert len(app.text_area) == 0
+    assert [item.placeholder for item in app.chat_input] == [
+        "输入研究问题，或继续追问上一轮结果"
+    ]
 
     app.selectbox[0].set_value("offline").run()
     app.radio[0].set_value("研究分析").run()
-    app.text_area[0].set_value("Mamba innovation limitation").run()
     app.slider[1].set_value(10).run()
-    app.button[0].click().run(timeout=90)
+    app.chat_input[0].set_value(
+        "Mamba innovation limitation"
+    ).run(timeout=90)
 
     assert len(app.exception) == 0
     assert [tab.label for tab in app.tabs] == [
@@ -32,6 +36,18 @@ def test_offline_analysis_ui() -> None:
 
     state = app.session_state["analysis_state"]
     assert state["global_context"]["model_config"]["api_key"] == ""
+    assert len(app.session_state["chat_messages"]) == 2
+
+    app.chat_input[0].set_value(
+        "What methods does it use?"
+    ).run(timeout=90)
+
+    assert len(app.exception) == 0
+    assert len(app.session_state["chat_messages"]) == 4
+    state = app.session_state["analysis_state"]
+    assert "Mamba innovation limitation" in state["standalone_query"]
+    assert "What methods does it use?" in state["standalone_query"]
+    assert len(app.chat_message) == 4
 
 
 def test_library_workspace_is_read_only_management() -> None:

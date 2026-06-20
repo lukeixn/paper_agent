@@ -79,7 +79,13 @@ class BaseAgent(ABC):
         prompt = f"""
 {self.profile}
 
-用户问题：
+历史对话（仅用于理解当前追问）：
+{task["conversation_context"] or "无"}
+
+用户当前问题：
+{task["user_query"]}
+
+用于检索和分析的独立问题：
 {task["query"]}
 
 论文材料：

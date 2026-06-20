@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 from schemas import Paper
+
+
+class ConversationMessage(TypedDict):
+    role: Literal["user", "assistant"]
+    content: str
 
 
 class AgentTaskState(TypedDict):
     agent_name: str
     query: str
+    user_query: str
+    conversation_context: str
     papers: list[Paper]
     model_config: dict[str, Any]
 
@@ -22,6 +29,9 @@ class AgentOutput(TypedDict):
 
 class MainState(TypedDict, total=False):
     query: str
+    standalone_query: str
+    conversation_history: list[ConversationMessage]
+    conversation_context: str
     route: str
     selected_agents: list[str]
     global_context: dict[str, Any]
@@ -32,9 +42,15 @@ class MainState(TypedDict, total=False):
     errors: Annotated[list[str], operator.add]
 
 
-def create_state(query: str) -> MainState:
+def create_state(
+    query: str,
+    conversation_history: list[ConversationMessage] | None = None,
+) -> MainState:
     return {
         "query": query,
+        "standalone_query": query,
+        "conversation_history": list(conversation_history or []),
+        "conversation_context": "",
         "route": "",
         "selected_agents": [],
         "global_context": {},

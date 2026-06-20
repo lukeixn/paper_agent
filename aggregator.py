@@ -42,8 +42,14 @@ class ReportAgent:
 你是最终 ReportAgent。请基于多个彼此独立的专家 Agent 输出，生成一份
 结构清晰、避免重复、忠于证据的中文研究报告。
 
-用户问题：
+历史对话：
+{state.get("conversation_context") or "无"}
+
+用户当前问题：
 {state.get("query", "")}
+
+用于检索和分析的独立问题：
+{state.get("standalone_query", state.get("query", ""))}
 
 检索论文：
 {paper_titles}
