@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import importlib
+import inspect
 import os
 from typing import Any
 
 import streamlit as st
 
+import workflow
 from academic_search import AcademicSearchService
 from configs.config import cfg
 from paper_library import PaperLibrary
-from workflow import langgraph_available, run_pipeline_state
 
 
 AGENT_LABELS = {
@@ -17,6 +19,16 @@ AGENT_LABELS = {
     "method_agent": "方法比较",
     "limitation_agent": "局限与机会",
 }
+
+
+def current_workflow():
+    global workflow
+    parameters = inspect.signature(
+        workflow.run_pipeline_state
+    ).parameters
+    if "conversation_history" not in parameters:
+        workflow = importlib.reload(workflow)
+    return workflow
 
 
 def apply_styles() -> None:
@@ -599,7 +611,11 @@ def main() -> None:
         '<p class="app-subtitle">检索论文库，通过 LangGraph 调度多个研究 Agent，并生成结构化报告。</p>',
         unsafe_allow_html=True,
     )
-    graph_status = "LangGraph 已连接" if langgraph_available() else "兼容模式"
+    graph_status = (
+        "LangGraph 已连接"
+        if current_workflow().langgraph_available()
+        else "兼容模式"
+    )
     st.markdown(
         f'<div class="status-line"><span class="status-dot"></span>{graph_status}</div>',
         unsafe_allow_html=True,
@@ -652,7 +668,7 @@ def main() -> None:
                 st.write("理解连续对话")
                 st.write("检索相关论文")
                 st.write("路由分析任务")
-                state = run_pipeline_state(
+                state = current_workflow().run_pipeline_state(
                     query.strip(),
                     top_k=settings["top_k"],
                     model_config=runtime_model_config(settings),

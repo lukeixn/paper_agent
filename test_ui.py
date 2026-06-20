@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import ui
 from streamlit.testing.v1 import AppTest
+
+
+def test_workflow_hot_reload_guard() -> None:
+    runner = ui.current_workflow().run_pipeline_state
+    assert "conversation_history" in runner.__annotations__
 
 
 def test_offline_analysis_ui() -> None:
@@ -86,6 +92,7 @@ def test_search_workspace_contains_online_and_local_import() -> None:
 
 
 if __name__ == "__main__":
+    test_workflow_hot_reload_guard()
     test_offline_analysis_ui()
     test_library_workspace_is_read_only_management()
     test_search_workspace_contains_online_and_local_import()
