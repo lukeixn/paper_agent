@@ -70,6 +70,89 @@ def current_workflow():
     return workflow
 
 
+def conversation_title(query: str, max_length: int = 24) -> str:
+    title = " ".join(query.strip().split())
+    if len(title) <= max_length:
+        return title
+    return title[: max_length - 1] + "…"
+
+
+def initialize_conversations() -> None:
+    if "conversation_sessions" in st.session_state:
+        return
+
+    legacy_messages = list(st.session_state.pop("chat_messages", []))
+    legacy_state = st.session_state.pop("analysis_state", None)
+    title = (
+        conversation_title(legacy_messages[0]["content"])
+        if legacy_messages
+        else "新会话"
+    )
+    st.session_state["conversation_sessions"] = {
+        "conversation-1": {
+            "title": title,
+            "messages": legacy_messages,
+            "analysis_state": legacy_state,
+        }
+    }
+    st.session_state["active_conversation_id"] = "conversation-1"
+    st.session_state["next_conversation_number"] = 2
+
+
+def active_conversation() -> dict[str, Any]:
+    initialize_conversations()
+    sessions = st.session_state["conversation_sessions"]
+    active_id = st.session_state["active_conversation_id"]
+    return sessions[active_id]
+
+
+def create_conversation() -> str:
+    initialize_conversations()
+    current = active_conversation()
+    if not current["messages"]:
+        return st.session_state["active_conversation_id"]
+
+    number = st.session_state["next_conversation_number"]
+    conversation_id = f"conversation-{number}"
+    st.session_state["next_conversation_number"] = number + 1
+    st.session_state["conversation_sessions"][conversation_id] = {
+        "title": "新会话",
+        "messages": [],
+        "analysis_state": None,
+    }
+    st.session_state["active_conversation_id"] = conversation_id
+    return conversation_id
+
+
+def render_conversation_sidebar() -> None:
+    initialize_conversations()
+    st.sidebar.subheader("会话")
+    if st.sidebar.button(
+        "新建会话",
+        key="new_conversation",
+        width="stretch",
+    ):
+        create_conversation()
+        st.rerun()
+
+    sessions = st.session_state["conversation_sessions"]
+    active_id = st.session_state["active_conversation_id"]
+    for conversation_id, conversation in reversed(list(sessions.items())):
+        is_active = conversation_id == active_id
+        label = conversation["title"]
+        if st.sidebar.button(
+            label,
+            key=f"open_{conversation_id}",
+            type="primary" if is_active else "secondary",
+            width="stretch",
+        ):
+            if not is_active:
+                st.session_state[
+                    "active_conversation_id"
+                ] = conversation_id
+                st.rerun()
+
+
 def _topology_status(
     status: str,
 ) -> str:
@@ -1127,13 +1210,8 @@ def main() -> None:
         render_academic_search(settings)
         return
 
-    if "chat_messages" not in st.session_state:
-        st.session_state["chat_messages"] = []
-
-    if st.sidebar.button("新建会话", width="stretch"):
-        st.session_state["chat_messages"] = []
-        st.session_state.pop("analysis_state", None)
-        st.rerun()
+    render_conversation_sidebar()
+    conversation = active_conversation()
 
     chat_column, graph_column = st.columns(
         [1.7, 1],
@@ -1141,7 +1219,7 @@ def main() -> None:
     )
     graph_placeholder = graph_column.empty()
     progress = completed_workflow_progress(
-        st.session_state.get("analysis_state")
+        conversation.get("analysis_state")
     )
     render_workflow_diagram(
         graph_placeholder,
@@ -1151,11 +1229,11 @@ def main() -> None:
         paper_count=progress[3],
     )
 
-    messages = st.session_state["chat_messages"]
+    messages = conversation["messages"]
     with chat_column:
         if not messages:
             st.info(
-                "输入第一个研究问题。之后可以直接追问，Agent 会结合当前会话继续分析。"
+                "这是一个新会话。输入研究主题后，本会话中的后续问题都会作为连续追问。"
             )
 
         for message in messages:
@@ -1163,7 +1241,7 @@ def main() -> None:
                 st.markdown(message["content"])
 
         query = st.chat_input(
-            "输入研究问题，或继续追问上一轮结果",
+            "在当前会话中继续提问",
         )
 
     if query:
@@ -1178,6 +1256,8 @@ def main() -> None:
             st.warning("请输入 API Key，或选择离线模式。")
         else:
             history = list(messages)
+            if not messages:
+                conversation["title"] = conversation_title(query)
             messages.append({"role": "user", "content": query.strip()})
             node_status = {
                 "contextualize": "running",
@@ -1276,14 +1356,16 @@ def main() -> None:
                     )
             report = state.get("final_report", "")
             messages.append({"role": "assistant", "content": report})
-            st.session_state["analysis_state"] = state
-            with chat_column:
-                with st.chat_message("assistant"):
-                    st.markdown(report)
+            conversation["analysis_state"] = state
+            active_id = st.session_state["active_conversation_id"]
+            st.session_state["conversation_sessions"][
+                active_id
+            ] = conversation
+            st.rerun()
 
-    if "analysis_state" in st.session_state:
+    if conversation.get("analysis_state"):
         st.divider()
-        render_result(st.session_state["analysis_state"])
+        render_result(conversation["analysis_state"])
 
 
 if __name__ == "__main__":

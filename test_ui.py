@@ -24,6 +24,11 @@ def test_topology_layout_matches_selected_agent_count() -> None:
     )] == [100, 210, 320]
 
 
+def test_conversation_title_is_compact() -> None:
+    assert ui.conversation_title("  KV 缓存   优化方向  ") == "KV 缓存 优化方向"
+    assert ui.conversation_title("a" * 30) == "a" * 23 + "…"
+
+
 def topology_svg(app: AppTest) -> str:
     markup = next(
         item.value
@@ -42,10 +47,13 @@ def test_offline_analysis_ui() -> None:
     app.run()
 
     assert len(app.exception) == 0
-    assert [button.label for button in app.button] == ["新建会话"]
+    assert [button.label for button in app.button] == [
+        "新建会话",
+        "新会话",
+    ]
     assert len(app.text_area) == 0
     assert [item.placeholder for item in app.chat_input] == [
-        "输入研究问题，或继续追问上一轮结果"
+        "在当前会话中继续提问"
     ]
     assert any(
         "实时执行图" in item.value for item in app.markdown
@@ -84,19 +92,51 @@ def test_offline_analysis_ui() -> None:
     assert "方法比较" not in svg
     assert svg.count('<g class="topo-agent') == 2
 
-    state = app.session_state["analysis_state"]
+    sessions = app.session_state["conversation_sessions"]
+    active_id = app.session_state["active_conversation_id"]
+    state = sessions[active_id]["analysis_state"]
     assert state["global_context"]["model_config"]["api_key"] == ""
-    assert len(app.session_state["chat_messages"]) == 2
+    assert len(sessions[active_id]["messages"]) == 2
+    assert sessions[active_id]["title"] == "Mamba innovation limita…"
 
     app.chat_input[0].set_value(
         "What methods does it use?"
     ).run(timeout=90)
 
     assert len(app.exception) == 0
-    assert len(app.session_state["chat_messages"]) == 4
-    state = app.session_state["analysis_state"]
+    sessions = app.session_state["conversation_sessions"]
+    active_id = app.session_state["active_conversation_id"]
+    assert len(sessions[active_id]["messages"]) == 4
+    state = sessions[active_id]["analysis_state"]
     assert "Mamba innovation limitation" in state["standalone_query"]
     assert "What methods does it use?" in state["standalone_query"]
+    assert len(app.chat_message) == 4
+
+    old_conversation_id = active_id
+    next(
+        button for button in app.button
+        if button.label == "新建会话"
+    ).click().run()
+
+    new_conversation_id = app.session_state["active_conversation_id"]
+    assert new_conversation_id != old_conversation_id
+    assert len(app.chat_message) == 0
+    assert len(app.session_state["conversation_sessions"]) == 2
+
+    app.chat_input[0].set_value(
+        "A completely separate topic"
+    ).run(timeout=90)
+    sessions = app.session_state["conversation_sessions"]
+    assert len(sessions[new_conversation_id]["messages"]) == 2
+    assert len(sessions[old_conversation_id]["messages"]) == 4
+
+    next(
+        button for button in app.button
+        if button.label == "Mamba innovation limita…"
+    ).click().run()
+    assert app.session_state[
+        "active_conversation_id"
+    ] == old_conversation_id
     assert len(app.chat_message) == 4
 
 
@@ -138,6 +178,7 @@ def test_search_workspace_contains_online_and_local_import() -> None:
 if __name__ == "__main__":
     test_workflow_hot_reload_guard()
     test_topology_layout_matches_selected_agent_count()
+    test_conversation_title_is_compact()
     test_offline_analysis_ui()
     test_library_workspace_is_read_only_management()
     test_search_workspace_contains_online_and_local_import()
