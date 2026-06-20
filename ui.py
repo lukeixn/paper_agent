@@ -13,6 +13,7 @@ import workflow
 from academic_search import AcademicSearchService
 from configs.config import cfg
 from paper_library import PaperLibrary
+from skill_library import AgentSkillLibrary
 
 
 AGENT_LABELS = {
@@ -1192,6 +1193,94 @@ def render_library(settings: dict[str, Any]) -> None:
             st.info("当前筛选条件下没有论文。")
 
 
+def render_agent_skills() -> None:
+    library = AgentSkillLibrary()
+    st.header("Agent Skills")
+    st.caption(
+        "为指定 Agent 安装 Markdown Skill。每个 Agent 只会读取自己的 Skill 文件。"
+    )
+
+    agent_name = st.selectbox(
+        "目标 Agent",
+        list(AGENT_LABELS),
+        format_func=lambda value: AGENT_LABELS[value],
+        key="skill_target_agent",
+    )
+    uploaded_skill = st.file_uploader(
+        "选择 Markdown Skill",
+        type=["md", "markdown"],
+        accept_multiple_files=False,
+        key="agent_skill_uploader",
+        help="文件会保存到 agent_skills/目标 Agent/ 目录，下一次分析立即生效。",
+    )
+    overwrite = st.checkbox(
+        "覆盖同名 Skill",
+        value=False,
+        key="agent_skill_overwrite",
+    )
+    install_clicked = st.button(
+        "安装 Skill",
+        type="primary",
+        width="stretch",
+        disabled=uploaded_skill is None,
+        key="install_agent_skill",
+    )
+    if install_clicked and uploaded_skill is not None:
+        try:
+            skill = library.save(
+                agent_name,
+                uploaded_skill.name,
+                uploaded_skill.getvalue(),
+                overwrite=overwrite,
+            )
+            st.success(
+                f"已为 {AGENT_LABELS[agent_name]} 安装 {skill.filename}。"
+            )
+        except (ValueError, FileExistsError) as exc:
+            st.error(str(exc))
+
+    st.subheader("已安装 Skills")
+    skills = library.list()
+    if not skills:
+        st.info("尚未安装外部 Skill。")
+        return
+
+    st.dataframe(
+        [
+            {
+                "Agent": AGENT_LABELS[skill.agent_name],
+                "文件": skill.filename,
+                "字符数": len(skill.content),
+                "保存位置": str(skill.path),
+            }
+            for skill in skills
+        ],
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Agent": st.column_config.TextColumn(width="medium"),
+            "文件": st.column_config.TextColumn(width="medium"),
+            "字符数": st.column_config.NumberColumn(width="small"),
+            "保存位置": st.column_config.TextColumn(width="large"),
+        },
+    )
+
+    selected_agent_skills = library.list(agent_name)
+    if selected_agent_skills:
+        with st.expander(f"预览 {AGENT_LABELS[agent_name]} 的 Skills"):
+            selected_filename = st.selectbox(
+                "Skill 文件",
+                [skill.filename for skill in selected_agent_skills],
+                key="skill_preview_file",
+            )
+            selected_skill = next(
+                skill
+                for skill in selected_agent_skills
+                if skill.filename == selected_filename
+            )
+            st.markdown(selected_skill.content)
+
+
 def main() -> None:
     st.set_page_config(
         page_title="Paper Agent",
@@ -1205,7 +1294,7 @@ def main() -> None:
     st.sidebar.divider()
     workspace = st.sidebar.radio(
         "工作区",
-        ["研究分析", "论文检索", "论文数据库"],
+        ["研究分析", "论文检索", "论文数据库", "Agent Skills"],
     )
     st.sidebar.divider()
     st.sidebar.caption(
@@ -1232,6 +1321,9 @@ def main() -> None:
         return
     if workspace == "论文检索":
         render_academic_search(settings)
+        return
+    if workspace == "Agent Skills":
+        render_agent_skills()
         return
 
     render_conversation_sidebar()

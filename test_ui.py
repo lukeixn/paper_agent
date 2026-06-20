@@ -180,6 +180,20 @@ def test_search_workspace_contains_online_and_local_import() -> None:
     ]
 
 
+def test_agent_skills_workspace() -> None:
+    app = AppTest.from_file("ui.py", default_timeout=90)
+    app.run()
+    app.selectbox[0].set_value("offline").run()
+    app.radio[0].set_value("Agent Skills").run()
+
+    assert len(app.exception) == 0
+    assert "目标 Agent" in [item.label for item in app.selectbox]
+    assert [uploader.label for uploader in app.file_uploader] == [
+        "选择 Markdown Skill"
+    ]
+    assert "安装 Skill" in [button.label for button in app.button]
+
+
 if __name__ == "__main__":
     test_workflow_hot_reload_guard()
     test_topology_layout_matches_selected_agent_count()
@@ -187,4 +201,5 @@ if __name__ == "__main__":
     test_offline_analysis_ui()
     test_library_workspace_is_read_only_management()
     test_search_workspace_contains_online_and_local_import()
+    test_agent_skills_workspace()
     print("streamlit UI tests passed")

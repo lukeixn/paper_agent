@@ -17,13 +17,36 @@ http://localhost:8502
 D:\py\Anaconda3\envs\py311\python.exe -m streamlit run ui.py --server.port 8502
 ```
 
-## 三个工作区
+## 工作区
 
 - **研究分析**：只检索本地论文库，通过 LangGraph 并行执行专业 Agent。
 - **论文检索**
   - 在线搜索：从 OpenAlex 获取候选，AI 排序后手动选择导入。
   - 本地 PDF 导入：用于已经从登录网站手动下载的论文。
 - **论文数据库**：查看已有论文、来源和 FAISS 索引状态。
+- **Agent Skills**：为指定 Agent 上传 Markdown Skill，并查看已安装文件。
+
+## Agent Skills
+
+在 UI 的 **Agent Skills** 工作区中：
+
+1. 选择目标 Agent。
+2. 上传 UTF-8 编码的 `.md` 文件。
+3. 点击“安装 Skill”。
+4. 下一次该 Agent 执行时会自动加载新 Skill。
+
+文件按照 Agent 分别保存在：
+
+```text
+agent_skills/
+  survey_agent/
+  innovation_agent/
+  method_agent/
+  limitation_agent/
+```
+
+每个 Agent 只会读取自己目录中的 Markdown。原有
+`profiles/innovation.md` 仍作为创新 Agent 的内置 profile 使用。
 
 ## PDF 全文解析
 
@@ -41,6 +64,7 @@ PDF 导入不再只截取开头内容。当前流程为：
 
 ```text
 START
+  -> contextualize
   -> retrieve
   -> route
   -> [并行分支]

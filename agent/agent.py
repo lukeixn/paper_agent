@@ -5,7 +5,11 @@ from pathlib import Path
 
 from models.langchain_llm import OfflineLLM, get_llm
 from schemas import Paper
+from skill_library import AgentSkillLibrary
 from state.state import AgentOutput, AgentTaskState
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class BaseAgent(ABC):
@@ -17,10 +21,20 @@ class BaseAgent(ABC):
         self.profile = self.load_profile()
 
     def load_profile(self) -> str:
-        if not self.profile_path:
-            return ""
-        path = Path(self.profile_path)
-        return path.read_text(encoding="utf8") if path.exists() else ""
+        sections = []
+        if self.profile_path:
+            path = PROJECT_ROOT / self.profile_path
+            if path.exists():
+                sections.append(path.read_text(encoding="utf8").strip())
+
+        external_skills = AgentSkillLibrary(
+            PROJECT_ROOT / "agent_skills"
+        ).combined_prompt(self.name)
+        if external_skills:
+            sections.append(
+                "# External Agent Skills\n" + external_skills
+            )
+        return "\n\n".join(section for section in sections if section)
 
     def __call__(self, task: AgentTaskState) -> AgentOutput:
         try:
