@@ -194,7 +194,9 @@ def report_agent_node(state: MainState) -> dict[str, Any]:
     )
     report_state = dict(state)
     report_state["agent_outputs"] = outputs
-    report = ReportAgent().run(report_state)
+    report_agent = ReportAgent()
+    response_mode = report_agent.response_mode(report_state)
+    report = report_agent.run(report_state)
     agent_results = {
         output["agent_name"]: output["content"]
         for output in outputs
@@ -208,6 +210,7 @@ def report_agent_node(state: MainState) -> dict[str, Any]:
     return {
         "agent_results": agent_results,
         "final_report": report,
+        "response_mode": response_mode,
         "global_context": global_context,
     }
 
@@ -379,6 +382,7 @@ def run_compatible_state(
     report_update = report_agent_node(state)
     state["agent_results"] = report_update["agent_results"]
     state["final_report"] = report_update["final_report"]
+    state["response_mode"] = report_update["response_mode"]
     state["global_context"] = report_update["global_context"]
     return state
 

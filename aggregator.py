@@ -8,6 +8,24 @@ class ReportAgent:
     name = "report_agent"
     title = "综合报告 Agent"
 
+    @staticmethod
+    def response_mode(state: MainState) -> str:
+        if not state.get("user_question_history"):
+            return "report"
+        query = state.get("query", "").lower()
+        explicit_report_terms = [
+            "完整报告",
+            "综合报告",
+            "生成报告",
+            "重新汇总",
+            "全面总结",
+            "总结成报告",
+            "full report",
+        ]
+        if any(term in query for term in explicit_report_terms):
+            return "report"
+        return "follow_up"
+
     def run(self, state: MainState) -> str:
         outputs = state.get("agent_outputs", [])
         successful = [output for output in outputs if not output["error"]]
@@ -45,6 +63,36 @@ class ReportAgent:
                 start=1,
             )
         )
+        if ReportAgent.response_mode(state) == "follow_up":
+            return f"""
+你是连续研究会话中的最终回答 Agent。请综合多个独立专家 Agent 的本轮分析，
+直接回答用户当前追问。你的任务是延续会话，而不是每轮重新生成完整研究报告。
+
+同一会话中的历史用户问题：
+{history_text}
+
+本轮用户当前追问（唯一回答目标，最高优先级）：
+{state.get("query", "")}
+
+用于检索和分析的独立问题：
+{state.get("standalone_query", state.get("query", ""))}
+
+本轮检索论文：
+{paper_titles}
+
+本轮独立 Agent 输出：
+{sections}
+
+强制要求：
+1. 开头直接给出本轮追问的答案或判断，不要使用“执行摘要”。
+2. 根据问题自然组织内容，不要强制套用趋势、创新、方法、局限等固定章节。
+3. 不要重复上一轮问题的背景和已经明确的结论，除非它们是回答本轮问题所必需的。
+4. 需要比较时使用紧凑的对比结构；需要解释时围绕因果关系展开；需要建议时给出可执行结论。
+5. 综合各 Agent 的观点，不要逐个复述 Agent 输出。
+6. 历史问题只用于保持指代、研究对象和约束连续；冲突时以当前追问为准。
+7. 不要添加 Agent 输出和论文材料中没有依据的事实。
+8. 除非用户明确要求重新汇总或生成完整报告，否则保持对话式回答。
+"""
         return f"""
 你是最终 ReportAgent。请基于多个彼此独立的专家 Agent 输出，生成一份
 结构清晰、避免重复、忠于证据的中文研究报告。
@@ -77,6 +125,22 @@ class ReportAgent:
         state: MainState,
         outputs: list[AgentOutput],
     ) -> str:
+        if ReportAgent.response_mode(state) == "follow_up":
+            lines = [
+                "# 本轮回答",
+                "",
+                state.get("query", ""),
+            ]
+            for output in outputs:
+                if output["error"]:
+                    continue
+                lines.extend(
+                    ["", f"### {output['title']}", output["content"]]
+                )
+            if len(lines) == 3:
+                lines.extend(["", "本轮 Agent 未能生成有效分析。"])
+            return "\n".join(lines).strip() + "\n"
+
         lines = [
             "# 论文 Agent 分析报告",
             "",

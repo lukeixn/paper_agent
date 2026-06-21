@@ -3,6 +3,7 @@ from __future__ import annotations
 import workflow
 import router
 from agent.agent import AGENT_REGISTRY
+from aggregator import ReportAgent
 from models.langchain_llm import LLMResponse
 from router import Router
 from workflow import (
@@ -41,6 +42,53 @@ def test_pipeline_generates_report() -> None:
     assert "VAMBA" in report or "Video Mamba" in report
     assert "创新分析 Agent" in report
     assert "局限与机会 Agent" in report
+
+
+def test_report_agent_uses_conversational_follow_up_mode() -> None:
+    state = create_pipeline_state(
+        "那它最适合什么场景？",
+        model_config={"provider": "offline"},
+        conversation_history=[
+            {"role": "user", "content": "分析 Mamba 的主要方法。"},
+            {"role": "assistant", "content": "上一轮完整报告。"},
+        ],
+    )
+    state.update(contextualize_query_node(state))
+    state["agent_outputs"] = [
+        {
+            "agent_name": "method_agent",
+            "title": "方法比较 Agent",
+            "content": "适合长序列和线性复杂度敏感场景。",
+            "error": "",
+        }
+    ]
+
+    prompt = ReportAgent._report_prompt(
+        state,
+        state["agent_outputs"],
+    )
+    report = ReportAgent().run(state)
+
+    assert ReportAgent.response_mode(state) == "follow_up"
+    assert "不要使用“执行摘要”" in prompt
+    assert "不要强制套用" in prompt
+    assert "每轮重新生成完整研究报告" in prompt
+    assert report.startswith("# 本轮回答")
+    assert "# 论文 Agent 分析报告" not in report
+
+
+def test_follow_up_can_explicitly_request_full_report() -> None:
+    state = create_pipeline_state(
+        "请结合前面的讨论生成一份完整报告。",
+        model_config={"provider": "offline"},
+        conversation_history=[
+            {"role": "user", "content": "分析 Mamba 的主要方法。"},
+            {"role": "assistant", "content": "上一轮回答。"},
+        ],
+    )
+    state.update(contextualize_query_node(state))
+
+    assert ReportAgent.response_mode(state) == "report"
 
 
 def test_parallel_agents_receive_isolated_context() -> None:
@@ -331,6 +379,8 @@ def test_router_falls_back_when_llm_output_is_invalid() -> None:
 if __name__ == "__main__":
     test_workflow_info()
     test_pipeline_generates_report()
+    test_report_agent_uses_conversational_follow_up_mode()
+    test_follow_up_can_explicitly_request_full_report()
     test_parallel_agents_receive_isolated_context()
     test_follow_up_question_uses_user_question_history()
     test_full_reports_are_excluded_from_agent_history()

@@ -902,7 +902,12 @@ def render_result(state: dict[str, Any]) -> None:
     metric_columns[1].metric("执行 Agent", len(results))
     metric_columns[2].metric("路由", state.get("route", ""))
 
-    tabs = st.tabs(["概览", "论文", "Agent 分析", "完整报告"])
+    final_tab_label = (
+        "本轮回答"
+        if state.get("response_mode") == "follow_up"
+        else "完整报告"
+    )
+    tabs = st.tabs(["概览", "论文", "Agent 分析", final_tab_label])
     with tabs[0]:
         st.subheader("执行路径")
         st.write("检索 → 路由 → 并行 Agent → ReportAgent")

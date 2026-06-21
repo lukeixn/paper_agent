@@ -145,6 +145,13 @@ def test_offline_analysis_ui() -> None:
     state = sessions[active_id]["analysis_state"]
     assert "Mamba innovation limitation" in state["standalone_query"]
     assert "What methods does it use?" in state["standalone_query"]
+    assert state["response_mode"] == "follow_up"
+    assert [tab.label for tab in app.tabs] == [
+        "概览",
+        "论文",
+        "Agent 分析",
+        "本轮回答",
+    ]
     assert len(app.chat_message) == 4
 
     old_conversation_id = active_id

@@ -30,6 +30,7 @@ class AgentOutput(TypedDict):
 class MainState(TypedDict, total=False):
     query: str
     standalone_query: str
+    response_mode: Literal["report", "follow_up"]
     conversation_history: list[ConversationMessage]
     user_question_history: list[str]
     route: str
@@ -49,6 +50,7 @@ def create_state(
     return {
         "query": query,
         "standalone_query": query,
+        "response_mode": "report",
         "conversation_history": list(conversation_history or []),
         "user_question_history": [],
         "route": "",
