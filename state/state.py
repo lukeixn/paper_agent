@@ -15,7 +15,7 @@ class AgentTaskState(TypedDict):
     agent_name: str
     query: str
     user_query: str
-    conversation_context: str
+    user_question_history: list[str]
     papers: list[Paper]
     model_config: dict[str, Any]
 
@@ -31,7 +31,7 @@ class MainState(TypedDict, total=False):
     query: str
     standalone_query: str
     conversation_history: list[ConversationMessage]
-    conversation_context: str
+    user_question_history: list[str]
     route: str
     selected_agents: list[str]
     global_context: dict[str, Any]
@@ -50,7 +50,7 @@ def create_state(
         "query": query,
         "standalone_query": query,
         "conversation_history": list(conversation_history or []),
-        "conversation_context": "",
+        "user_question_history": [],
         "route": "",
         "selected_agents": [],
         "global_context": {},

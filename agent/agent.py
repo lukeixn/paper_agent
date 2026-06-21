@@ -81,13 +81,20 @@ class BaseAgent(ABC):
         if isinstance(llm, OfflineLLM):
             return None
 
+        history_text = "\n".join(
+            f"{index}. {question}"
+            for index, question in enumerate(
+                task["user_question_history"],
+                start=1,
+            )
+        )
         prompt = f"""
 {self.profile}
 
-历史对话（仅用于理解当前追问）：
-{task["conversation_context"] or "无"}
+同一会话中的历史用户问题（所有 Agent 共享，仅用于理解上下文）：
+{history_text or "无"}
 
-用户当前问题：
+本轮用户当前问题（最高优先级）：
 {task["user_query"]}
 
 用于检索和分析的独立问题：
@@ -99,7 +106,12 @@ class BaseAgent(ABC):
 你的独立任务：
 {instruction}
 
-只完成你的任务。不要推测其他 Agent 的结论，也不要撰写最终综合报告。
+强制要求：
+1. 输出必须直接回答本轮当前问题。
+2. 历史用户问题只能用于解析当前问题中的省略对象、代词、比较范围和持续约束。
+3. 不要转而回答某个历史问题；历史问题与当前问题冲突时，以当前问题为准。
+4. 只使用分配给你的论文材料作为事实证据，不得编造论文结论。
+5. 只完成你的专业任务，不要推测其他 Agent 的结论，也不要撰写最终综合报告。
 """
         return llm.invoke(prompt).content
 

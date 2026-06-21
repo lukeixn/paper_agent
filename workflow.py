@@ -30,67 +30,48 @@ def langgraph_available() -> bool:
     return StateGraph is not None and Send is not None
 
 
-MAX_HISTORY_MESSAGES = 8
-MAX_HISTORY_CHARACTERS = 12000
-
-
-def trim_conversation_history(
+def extract_user_question_history(
     history: list[ConversationMessage] | None,
-) -> list[ConversationMessage]:
-    trimmed: list[ConversationMessage] = []
-    used_characters = 0
-    for message in reversed(list(history or [])):
-        role = message.get("role")
+) -> list[str]:
+    questions: list[str] = []
+    for message in list(history or []):
         content = str(message.get("content", "")).strip()
-        if role not in {"user", "assistant"} or not content:
-            continue
-        remaining = MAX_HISTORY_CHARACTERS - used_characters
-        if remaining <= 0:
-            break
-        content = content[-remaining:]
-        trimmed.append({"role": role, "content": content})
-        used_characters += len(content)
-        if len(trimmed) >= MAX_HISTORY_MESSAGES:
-            break
-    return list(reversed(trimmed))
+        if message.get("role") == "user" and content:
+            questions.append(content)
+    return questions
 
 
-def format_conversation_context(
-    history: list[ConversationMessage] | None,
+def format_user_question_history(
+    questions: list[str],
 ) -> str:
-    labels = {"user": "用户", "assistant": "助手"}
     return "\n\n".join(
-        f"{labels[message['role']]}：{message['content']}"
-        for message in trim_conversation_history(history)
+        f"{index}. {question}"
+        for index, question in enumerate(questions, start=1)
     )
 
 
 def _offline_standalone_query(
     query: str,
-    history: list[ConversationMessage],
+    user_question_history: list[str],
 ) -> str:
-    recent_user_messages = [
-        message["content"]
-        for message in history
-        if message["role"] == "user"
-    ]
-    if not recent_user_messages:
+    if not user_question_history:
         return query
     previous_questions = "\n".join(
-        f"- {message}" for message in recent_user_messages[-4:]
+        f"- {message}" for message in user_question_history
     )
     return f"相关历史问题：\n{previous_questions}\n当前追问：{query}"
 
 
 def contextualize_query_node(state: MainState) -> dict[str, Any]:
     query = state.get("query", "").strip()
-    history = trim_conversation_history(state.get("conversation_history", []))
-    context = format_conversation_context(history)
-    if not context:
+    user_question_history = extract_user_question_history(
+        state.get("conversation_history", [])
+    )
+    history_text = format_user_question_history(user_question_history)
+    if not user_question_history:
         return {
             "standalone_query": query,
-            "conversation_history": history,
-            "conversation_context": "",
+            "user_question_history": [],
         }
 
     model_config = state.get("global_context", {}).get("model_config", {})
@@ -101,19 +82,26 @@ def contextualize_query_node(state: MainState) -> dict[str, Any]:
         base_url=model_config.get("base_url"),
         temperature=model_config.get("temperature"),
     )
-    standalone_query = _offline_standalone_query(query, history)
+    standalone_query = _offline_standalone_query(
+        query,
+        user_question_history,
+    )
     if not isinstance(llm, OfflineLLM):
         prompt = f"""
-你负责理解连续研究对话。请结合历史对话，把“当前追问”改写为一个语义完整、
-可独立用于论文检索和任务路由的问题。
+你负责理解同一会话中的连续研究问题。
 
-历史对话：
-{context}
+以下内容只有历史用户问题，不包含也不依赖任何助手回答：
+{history_text}
 
 当前追问：
 {query}
 
-只输出改写后的独立问题，不要解释，不要回答问题。
+强制要求：
+1. 当前追问是本轮唯一要解决的问题，优先级最高。
+2. 必须利用历史用户问题解析省略的研究对象、代词、比较对象、范围和约束。
+3. 不要把历史问题逐条回答，不要擅自改变当前追问的意图。
+4. 将当前追问改写成语义完整、可独立用于论文检索和 Agent 路由的问题。
+5. 只输出改写后的独立问题，不要解释，不要回答问题。
 """
         try:
             rewritten = llm.invoke(prompt).content.strip()
@@ -124,8 +112,7 @@ def contextualize_query_node(state: MainState) -> dict[str, Any]:
 
     return {
         "standalone_query": standalone_query,
-        "conversation_history": history,
-        "conversation_context": context,
+        "user_question_history": user_question_history,
     }
 
 
@@ -142,9 +129,9 @@ def retrieve_node(state: MainState) -> dict[str, Any]:
 
 
 def route_node(state: MainState) -> dict[str, Any]:
-    decision = Router().route(
-        state.get("standalone_query") or state.get("query", "")
-    )
+    # Routing follows the current request so historical topics cannot override
+    # which specialists are needed for this turn.
+    decision = Router().route(state.get("query", ""))
     global_context = dict(state.get("global_context", {}))
     global_context["route_reason"] = decision.reason
     return {
@@ -169,8 +156,8 @@ def dispatch_agents(state: MainState):
                 "query": state.get("standalone_query")
                 or state.get("query", ""),
                 "user_query": state.get("query", ""),
-                "conversation_context": state.get(
-                    "conversation_context", ""
+                "user_question_history": list(
+                    state.get("user_question_history", [])
                 ),
                 "papers": list(state.get("retrieved_papers", [])),
                 "model_config": dict(model_config),
@@ -341,7 +328,9 @@ def _task_for_agent(state: MainState, agent_name: str) -> AgentTaskState:
         "agent_name": agent_name,
         "query": state.get("standalone_query") or state.get("query", ""),
         "user_query": state.get("query", ""),
-        "conversation_context": state.get("conversation_context", ""),
+        "user_question_history": list(
+            state.get("user_question_history", [])
+        ),
         "papers": list(state.get("retrieved_papers", [])),
         "model_config": dict(
             state.get("global_context", {}).get("model_config", {})

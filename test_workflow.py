@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import threading
-
 import workflow
 from agent.agent import AGENT_REGISTRY
 from router import Router
@@ -50,19 +48,19 @@ def test_parallel_agents_receive_isolated_context() -> None:
         "method_agent",
         "limitation_agent",
     ]
-    barrier = threading.Barrier(len(agent_names), timeout=5)
     seen_keys: list[set[str]] = []
     config_ids: list[int] = []
-    lock = threading.Lock()
+    question_histories: list[list[str]] = []
 
     def make_fake_agent(agent_name: str):
         class FakeAgent:
             def __call__(self, task):
-                with lock:
-                    seen_keys.append(set(task.keys()))
-                    config_ids.append(id(task["model_config"]))
+                seen_keys.append(set(task.keys()))
+                config_ids.append(id(task["model_config"]))
+                question_histories.append(
+                    list(task["user_question_history"])
+                )
                 task["model_config"]["branch_marker"] = agent_name
-                barrier.wait()
                 return {
                     "agent_name": agent_name,
                     "title": agent_name,
@@ -83,6 +81,14 @@ def test_parallel_agents_receive_isolated_context() -> None:
             "a broad research question",
             model_config={"provider": "offline"},
             require_langgraph=True,
+            conversation_history=[
+                {"role": "user", "content": "first user question"},
+                {
+                    "role": "assistant",
+                    "content": "full assistant report",
+                },
+                {"role": "user", "content": "second user question"},
+            ],
         )
     finally:
         AGENT_REGISTRY.clear()
@@ -93,17 +99,20 @@ def test_parallel_agents_receive_isolated_context() -> None:
         "agent_name",
         "query",
         "user_query",
-        "conversation_context",
+        "user_question_history",
         "papers",
         "model_config",
     }
-    assert seen_keys == [expected_keys] * len(agent_names)
+    assert seen_keys == [expected_keys] * len(agent_names), seen_keys
     assert len(set(config_ids)) == len(agent_names)
+    assert question_histories == [
+        ["first user question", "second user question"]
+    ] * len(agent_names)
     assert set(state["agent_results"]) == set(agent_names)
     assert "branch_marker" not in state["global_context"]["model_config"]
 
 
-def test_follow_up_question_uses_conversation_context() -> None:
+def test_follow_up_question_uses_user_question_history() -> None:
     history = [
         {
             "role": "user",
@@ -134,7 +143,48 @@ def test_follow_up_question_uses_conversation_context() -> None:
     assert "这些方法分别有什么优势" in update["standalone_query"]
     assert "当前追问" in update["standalone_query"]
     assert "它目前最大的局限是什么" in update["standalone_query"]
-    assert "状态空间模型" in update["conversation_context"]
+    assert update["user_question_history"] == [
+        "分析 Mamba 在长视频理解中的主要方法。",
+        "这些方法分别有什么优势？",
+    ]
+    assert "状态空间模型" not in "\n".join(
+        update["user_question_history"]
+    )
+
+
+def test_full_reports_are_excluded_from_agent_history() -> None:
+    history = [
+        {
+            "role": "user",
+            "content": "第一轮研究主题是 KV 缓存压缩。",
+        },
+        {
+            "role": "assistant",
+            "content": "第一轮摘要。" + "A" * 20000 + "第一轮结论。",
+        },
+        {
+            "role": "user",
+            "content": "第二轮请比较视觉模型中的方法。",
+        },
+        {
+            "role": "assistant",
+            "content": "第二轮摘要。" + "B" * 20000 + "第二轮结论。",
+        },
+    ]
+
+    state = create_pipeline_state(
+        "继续比较它们的适用场景。",
+        model_config={"provider": "offline"},
+        conversation_history=history,
+    )
+    update = contextualize_query_node(state)
+
+    assert update["user_question_history"] == [
+        "第一轮研究主题是 KV 缓存压缩。",
+        "第二轮请比较视觉模型中的方法。",
+    ]
+    assert "第一轮摘要" not in update["standalone_query"]
+    assert "第二轮摘要" not in update["standalone_query"]
 
 
 def test_stream_reports_each_parallel_agent() -> None:
@@ -186,7 +236,8 @@ if __name__ == "__main__":
     test_workflow_info()
     test_pipeline_generates_report()
     test_parallel_agents_receive_isolated_context()
-    test_follow_up_question_uses_conversation_context()
+    test_follow_up_question_uses_user_question_history()
+    test_full_reports_are_excluded_from_agent_history()
     test_stream_reports_each_parallel_agent()
     test_research_direction_question_uses_all_agents()
     print("workflow tests passed")

@@ -38,14 +38,21 @@ class ReportAgent:
         paper_titles = "\n".join(
             f"- {paper.title}" for paper in state.get("retrieved_papers", [])
         )
+        history_text = "\n".join(
+            f"{index}. {question}"
+            for index, question in enumerate(
+                state.get("user_question_history", []),
+                start=1,
+            )
+        )
         return f"""
 你是最终 ReportAgent。请基于多个彼此独立的专家 Agent 输出，生成一份
 结构清晰、避免重复、忠于证据的中文研究报告。
 
-历史对话：
-{state.get("conversation_context") or "无"}
+同一会话中的历史用户问题（仅用于理解当前问题）：
+{history_text or "无"}
 
-用户当前问题：
+本轮用户当前问题（最高优先级）：
 {state.get("query", "")}
 
 用于检索和分析的独立问题：
@@ -57,7 +64,8 @@ class ReportAgent:
 独立 Agent 输出：
 {sections}
 
-要求：
+强制要求：
+0. 最终报告必须直接回答本轮当前问题。历史问题只用于解析上下文，不得喧宾夺主。
 1. 开头给出简洁的执行摘要。
 2. 综合不同 Agent 的观点，而不是简单拼接。
 3. 明确区分研究趋势、创新、方法、局限和研究机会。
