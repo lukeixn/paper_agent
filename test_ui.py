@@ -164,6 +164,21 @@ def test_offline_analysis_ui() -> None:
     sessions = app.session_state["conversation_sessions"]
     assert len(sessions[new_conversation_id]["messages"]) == 2
     assert len(sessions[old_conversation_id]["messages"]) == 4
+    new_state = sessions[new_conversation_id]["analysis_state"]
+    old_state = sessions[old_conversation_id]["analysis_state"]
+    assert new_state["user_question_history"] == []
+    assert "Mamba innovation limitation" not in new_state[
+        "standalone_query"
+    ]
+    assert "What methods does it use?" not in new_state[
+        "standalone_query"
+    ]
+    assert old_state["user_question_history"] == [
+        "Mamba innovation limitation"
+    ]
+    assert "A completely separate topic" not in old_state[
+        "standalone_query"
+    ]
 
     next(
         button for button in app.button

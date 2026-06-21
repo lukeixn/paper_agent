@@ -187,6 +187,40 @@ def test_full_reports_are_excluded_from_agent_history() -> None:
     assert "第二轮摘要" not in update["standalone_query"]
 
 
+def test_conversation_histories_are_isolated_between_states() -> None:
+    first_state = create_pipeline_state(
+        "继续分析它的方法。",
+        model_config={"provider": "offline"},
+        conversation_history=[
+            {"role": "user", "content": "会话甲研究 Mamba。"},
+            {"role": "assistant", "content": "会话甲报告。"},
+        ],
+    )
+    second_state = create_pipeline_state(
+        "继续分析它的方法。",
+        model_config={"provider": "offline"},
+        conversation_history=[
+            {"role": "user", "content": "会话乙研究 Transformer。"},
+            {"role": "assistant", "content": "会话乙报告。"},
+        ],
+    )
+
+    first_state.update(contextualize_query_node(first_state))
+    second_state.update(contextualize_query_node(second_state))
+
+    assert first_state["user_question_history"] == [
+        "会话甲研究 Mamba。"
+    ]
+    assert second_state["user_question_history"] == [
+        "会话乙研究 Transformer。"
+    ]
+    assert "Transformer" not in first_state["standalone_query"]
+    assert "Mamba" not in second_state["standalone_query"]
+
+    first_state["user_question_history"].append("仅修改会话甲")
+    assert "仅修改会话甲" not in second_state["user_question_history"]
+
+
 def test_stream_reports_each_parallel_agent() -> None:
     events = list(
         stream_pipeline_state(
@@ -238,6 +272,7 @@ if __name__ == "__main__":
     test_parallel_agents_receive_isolated_context()
     test_follow_up_question_uses_user_question_history()
     test_full_reports_are_excluded_from_agent_history()
+    test_conversation_histories_are_isolated_between_states()
     test_stream_reports_each_parallel_agent()
     test_research_direction_question_uses_all_agents()
     print("workflow tests passed")
