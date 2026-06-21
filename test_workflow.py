@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import workflow
+import router
 from agent.agent import AGENT_REGISTRY
+from models.langchain_llm import LLMResponse
 from router import Router
 from workflow import (
     contextualize_query_node,
@@ -264,6 +266,66 @@ def test_research_direction_question_uses_all_agents() -> None:
         "method_agent",
         "limitation_agent",
     ]
+    assert decision.reason.startswith("规则回退：")
+
+
+def test_router_prefers_llm_selection_when_available() -> None:
+    prompts: list[str] = []
+
+    class FakeLLM:
+        def invoke(self, prompt: str) -> LLMResponse:
+            prompts.append(prompt)
+            return LLMResponse(
+                '{"agents":["method_agent","innovation_agent",'
+                '"method_agent","unknown_agent"],'
+                '"reason":"需要比较方法并判断创新性"}'
+            )
+
+    original_get_llm = router.get_llm
+    try:
+        router.get_llm = lambda **kwargs: FakeLLM()
+        decision = Router().route(
+            "它与现有方法相比有什么创新？",
+            contextual_query="Mamba 方法与现有长视频方法相比有什么创新？",
+            model_config={
+                "provider": "deepseek",
+                "api_key": "test-key",
+            },
+        )
+    finally:
+        router.get_llm = original_get_llm
+
+    assert decision.route == "multi_agent"
+    assert decision.agents == [
+        "method_agent",
+        "innovation_agent",
+    ]
+    assert decision.reason == "LLM 路由：需要比较方法并判断创新性"
+    assert "本轮用户原始问题（最高优先级）" in prompts[0]
+    assert "Mamba 方法与现有长视频方法相比有什么创新" in prompts[0]
+
+
+def test_router_falls_back_when_llm_output_is_invalid() -> None:
+    class InvalidLLM:
+        def invoke(self, prompt: str) -> LLMResponse:
+            return LLMResponse("无法判断")
+
+    original_get_llm = router.get_llm
+    try:
+        router.get_llm = lambda **kwargs: InvalidLLM()
+        decision = Router().route(
+            "请比较这些模型的方法架构",
+            model_config={
+                "provider": "deepseek",
+                "api_key": "test-key",
+            },
+        )
+    finally:
+        router.get_llm = original_get_llm
+
+    assert decision.route == "method_agent"
+    assert decision.agents == ["method_agent"]
+    assert decision.reason.startswith("规则回退：")
 
 
 if __name__ == "__main__":
@@ -275,4 +337,6 @@ if __name__ == "__main__":
     test_conversation_histories_are_isolated_between_states()
     test_stream_reports_each_parallel_agent()
     test_research_direction_question_uses_all_agents()
+    test_router_prefers_llm_selection_when_available()
+    test_router_falls_back_when_llm_output_is_invalid()
     print("workflow tests passed")

@@ -131,7 +131,13 @@ def retrieve_node(state: MainState) -> dict[str, Any]:
 def route_node(state: MainState) -> dict[str, Any]:
     # Routing follows the current request so historical topics cannot override
     # which specialists are needed for this turn.
-    decision = Router().route(state.get("query", ""))
+    decision = Router().route(
+        state.get("query", ""),
+        contextual_query=state.get("standalone_query"),
+        model_config=state.get("global_context", {}).get(
+            "model_config", {}
+        ),
+    )
     global_context = dict(state.get("global_context", {}))
     global_context["route_reason"] = decision.reason
     return {

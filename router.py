@@ -1,6 +1,19 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from typing import Any
+
+from models.langchain_llm import OfflineLLM, get_llm
+
+
+AGENT_DESCRIPTIONS = {
+    "survey_agent": "研究综述：研究方向、发展脉络、现状、趋势与代表性工作",
+    "innovation_agent": "创新分析：核心贡献、创新价值、差异、优势与新颖性",
+    "method_agent": "方法比较：模型架构、技术路线、关键机制、实现与方法对比",
+    "limitation_agent": "局限与机会：不足、风险、缺点、研究空白与后续机会",
+}
+ALL_AGENTS = list(AGENT_DESCRIPTIONS)
 
 
 @dataclass(frozen=True)
@@ -11,15 +24,112 @@ class RouteDecision:
 
 
 class Router:
-    def route(self, query: str) -> RouteDecision:
+    def route(
+        self,
+        query: str,
+        *,
+        contextual_query: str | None = None,
+        model_config: dict[str, Any] | None = None,
+    ) -> RouteDecision:
+        llm_decision = self._llm_route(
+            query,
+            contextual_query=contextual_query,
+            model_config=model_config or {},
+        )
+        if llm_decision is not None:
+            return llm_decision
+        return self._rule_route(query)
+
+    def _llm_route(
+        self,
+        query: str,
+        *,
+        contextual_query: str | None,
+        model_config: dict[str, Any],
+    ) -> RouteDecision | None:
+        if not model_config or model_config.get("provider") == "offline":
+            return None
+        llm = get_llm(
+            provider=model_config.get("provider"),
+            api_key=model_config.get("api_key"),
+            model_name=model_config.get("model_name"),
+            base_url=model_config.get("base_url"),
+            temperature=0,
+        )
+        if isinstance(llm, OfflineLLM):
+            return None
+
+        descriptions = "\n".join(
+            f"- {name}: {description}"
+            for name, description in AGENT_DESCRIPTIONS.items()
+        )
+        prompt = f"""
+你是多 Agent 研究系统的任务路由器。请判断本轮问题需要调用哪些专家 Agent。
+
+可选 Agent：
+{descriptions}
+
+本轮用户原始问题（最高优先级）：
+{query}
+
+结合会话历史改写后的独立问题：
+{contextual_query or query}
+
+强制要求：
+1. 只能从给定的四个 Agent 名称中选择。
+2. 选择完成本轮问题所必需的最小 Agent 集合，不要机械地全选。
+3. 如果问题要求研究选题、方向建议或综合决策，应选择所有相关 Agent。
+4. 原始问题与独立问题冲突时，以本轮原始问题的意图为准。
+5. 只输出一个 JSON 对象，不要输出 Markdown 或其他文字。
+
+输出格式：
+{{"agents":["method_agent"],"reason":"简洁说明选择依据"}}
+"""
+        try:
+            content = llm.invoke(prompt).content.strip()
+            payload = self._parse_llm_payload(content)
+        except Exception:
+            return None
+
+        raw_agents = payload.get("agents")
+        if not isinstance(raw_agents, list):
+            return None
+        agents = list(
+            dict.fromkeys(
+                agent
+                for agent in raw_agents
+                if isinstance(agent, str) and agent in ALL_AGENTS
+            )
+        )
+        if not agents:
+            return None
+
+        reason = str(payload.get("reason", "")).strip()
+        route = "multi_agent" if len(agents) > 1 else agents[0]
+        return RouteDecision(
+            route=route,
+            agents=agents,
+            reason=f"LLM 路由：{reason or '根据本轮问题选择所需专家'}",
+        )
+
+    @staticmethod
+    def _parse_llm_payload(content: str) -> dict[str, Any]:
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError:
+            start = content.find("{")
+            end = content.rfind("}")
+            if start < 0 or end <= start:
+                return {}
+            try:
+                payload = json.loads(content[start : end + 1])
+            except json.JSONDecodeError:
+                return {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _rule_route(self, query: str) -> RouteDecision:
         text = query.lower()
         agents: list[str] = []
-        all_agents = [
-            "survey_agent",
-            "innovation_agent",
-            "method_agent",
-            "limitation_agent",
-        ]
 
         decision_terms = [
             "哪个方向",
@@ -37,8 +147,8 @@ class Router:
         if any(term in text for term in decision_terms):
             return RouteDecision(
                 route="multi_agent",
-                agents=all_agents,
-                reason="该问题需要综合趋势、创新、方法和风险进行研究方向决策",
+                agents=ALL_AGENTS,
+                reason="规则回退：该问题需要综合趋势、创新、方法和风险进行研究方向决策",
             )
 
         if any(word in text for word in ["创新", "novel", "innovation", "贡献", "contribution", "优势"]):
@@ -51,11 +161,11 @@ class Router:
             agents.append("survey_agent")
 
         if not agents:
-            agents = all_agents
+            agents = ALL_AGENTS
 
         route = "multi_agent" if len(agents) > 1 else agents[0]
         return RouteDecision(
             route=route,
             agents=agents,
-            reason=f"根据问题意图选择 {', '.join(agents)}",
+            reason=f"规则回退：根据问题意图选择 {', '.join(agents)}",
         )
