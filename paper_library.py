@@ -91,11 +91,12 @@ class PaperLibrary:
                 None,
             )
 
+        matching_pdf_paths = self._matching_pdf_paths(paper_obj, json_path)
         json_path.unlink()
         deleted_files.append(str(json_path))
 
         if delete_pdf:
-            for pdf_path in self._matching_pdf_paths(paper_obj, json_path):
+            for pdf_path in matching_pdf_paths:
                 pdf_path.unlink(missing_ok=True)
                 deleted_files.append(str(pdf_path))
 
@@ -183,6 +184,14 @@ class PaperLibrary:
             PaperParser.sanitize_filename(paper.title) + ".pdf",
             json_path.with_suffix(".pdf").name,
         }
+        try:
+            data = json.loads(json_path.read_text(encoding="utf8"))
+            pdf_filename = data.get("pdf_filename")
+            if isinstance(pdf_filename, str) and pdf_filename.strip():
+                names.add(Path(pdf_filename).name)
+        except (OSError, json.JSONDecodeError):
+            pass
+
         matches: list[Path] = []
         for name in names:
             path = self.pdf_dir / name
@@ -222,8 +231,6 @@ class PaperLibrary:
     ) -> PaperInfo:
         safe_pdf_name = PaperParser.sanitize_filename(Path(filename).stem) + ".pdf"
         final_pdf_path = self.pdf_dir / safe_pdf_name
-        if final_pdf_path.exists() and not overwrite:
-            raise FileExistsError(f"PDF 已存在：{safe_pdf_name}")
 
         suffix = Path(filename).suffix or ".pdf"
         with NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
@@ -240,10 +247,25 @@ class PaperLibrary:
                 save_json=True,
                 overwrite=overwrite,
             )
+            self._record_pdf_filename(paper.title, safe_pdf_name)
             shutil.copy2(temporary_path, final_pdf_path)
             return paper
         finally:
             temporary_path.unlink(missing_ok=True)
+
+    def _record_pdf_filename(self, title: str, pdf_filename: str) -> None:
+        json_path = self.data_dir / f"{PaperParser.sanitize_filename(title)}.json"
+        try:
+            data = json.loads(json_path.read_text(encoding="utf8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        data["pdf_filename"] = Path(pdf_filename).name
+        temporary_path = json_path.with_suffix(".json.tmp")
+        temporary_path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf8",
+        )
+        temporary_path.replace(json_path)
 
     def import_many(
         self,

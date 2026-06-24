@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import shutil
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from paper_library import PaperLibrary
+from paper_parser import PaperInfo
 from paper_parser import PaperParser
 from schemas import Paper
 
@@ -119,10 +121,109 @@ def test_relative_source_file_inside_data_dir_is_not_prefixed_twice() -> None:
     assert "data/data" not in str(resolved)
 
 
+def test_import_pdf_replaces_orphan_pdf_after_json_was_deleted() -> None:
+    class FakeParser:
+        def __init__(self, save_dir: Path):
+            self.save_dir = save_dir
+
+        def parse_pdf(
+            self,
+            pdf_path: Path,
+            *,
+            save_json: bool,
+            overwrite: bool,
+        ) -> PaperInfo:
+            paper = PaperInfo(
+                title="End-to-End Object Detection with Transformers",
+                authors=[],
+                abstract="abstract",
+                summary="summary",
+                keywords=["DETR"],
+                contributions=[],
+                limitations=[],
+                embedding=[0.1] * 512,
+            )
+            if save_json:
+                path = self.save_dir / (
+                    PaperParser.sanitize_filename(paper.title) + ".json"
+                )
+                if path.exists() and not overwrite:
+                    raise FileExistsError(f"论文已存在：{paper.title}")
+                path.write_text(
+                    json.dumps(paper.model_dump(), ensure_ascii=False),
+                    encoding="utf8",
+                )
+            return paper
+
+    with TemporaryDirectory() as directory:
+        data_dir = Path(directory) / "data"
+        pdf_dir = Path(directory) / "papers"
+        data_dir.mkdir()
+        pdf_dir.mkdir()
+        orphan_pdf = pdf_dir / "DETR.pdf"
+        orphan_pdf.write_bytes(b"old orphan pdf")
+
+        uploaded = BytesIO(b"new pdf")
+        library = PaperLibrary(data_dir=data_dir, pdf_dir=pdf_dir)
+        paper = library.import_pdf(
+            uploaded,
+            "DETR.pdf",
+            model_config={},
+            parser=FakeParser(data_dir),
+        )
+
+        assert paper.title == "End-to-End Object Detection with Transformers"
+        assert orphan_pdf.read_bytes() == b"new pdf"
+        saved = json.loads(
+            (
+                data_dir
+                / "End-to-End Object Detection with Transformers.json"
+            ).read_text(encoding="utf8")
+        )
+        assert saved["pdf_filename"] == "DETR.pdf"
+
+
+def test_delete_paper_uses_recorded_pdf_filename() -> None:
+    with TemporaryDirectory() as directory:
+        data_dir = Path(directory) / "data"
+        pdf_dir = Path(directory) / "papers"
+        data_dir.mkdir()
+        pdf_dir.mkdir()
+        json_path = data_dir / "End-to-End Object Detection with Transformers.json"
+        json_path.write_text(
+            json.dumps(
+                {
+                    "title": "End-to-End Object Detection with Transformers",
+                    "authors": [],
+                    "abstract": "abstract",
+                    "summary": "summary",
+                    "keywords": ["DETR"],
+                    "contributions": [],
+                    "limitations": [],
+                    "embedding": [0.1] * 512,
+                    "pdf_filename": "DETR.pdf",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf8",
+        )
+        pdf_path = pdf_dir / "DETR.pdf"
+        pdf_path.write_bytes(b"pdf")
+
+        library = PaperLibrary(data_dir=data_dir, pdf_dir=pdf_dir)
+        result, _ = library.delete_paper(library.list_papers()[0])
+
+        assert result.success
+        assert not json_path.exists()
+        assert not pdf_path.exists()
+
+
 if __name__ == "__main__":
     test_list_existing_library()
     test_rebuild_faiss_in_temporary_library()
     test_delete_paper_removes_record_pdf_and_rebuilds_index()
     test_delete_last_paper_clears_stale_index_files()
     test_relative_source_file_inside_data_dir_is_not_prefixed_twice()
+    test_import_pdf_replaces_orphan_pdf_after_json_was_deleted()
+    test_delete_paper_uses_recorded_pdf_filename()
     print("paper library tests passed")
