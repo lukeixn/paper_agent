@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import fitz
 from langchain_core.output_parsers import PydanticOutputParser
@@ -11,6 +11,9 @@ from pydantic import BaseModel, Field
 from sentence_transformers import SentenceTransformer
 
 from models.langchain_llm import OfflineLLM, get_llm
+
+
+StructuredModel = TypeVar("StructuredModel", bound=BaseModel)
 
 
 class PaperInfo(BaseModel):
@@ -151,6 +154,105 @@ class PaperParser:
             ]
         )
 
+    @staticmethod
+    def _strip_markdown_fence(content: str) -> str:
+        text = content.strip()
+        fence_match = re.fullmatch(
+            r"```(?:json)?\s*(.*?)\s*```",
+            text,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        return fence_match.group(1).strip() if fence_match else text
+
+    @staticmethod
+    def _extract_json_object(content: str) -> str:
+        text = PaperParser._strip_markdown_fence(content)
+        if not text:
+            raise ValueError("模型返回为空，无法解析 JSON。")
+
+        start = text.find("{")
+        if start < 0:
+            raise ValueError("模型返回中没有 JSON 对象。")
+
+        in_string = False
+        escaped = False
+        depth = 0
+        for index in range(start, len(text)):
+            char = text[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+
+            if char == '"':
+                in_string = True
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start : index + 1]
+
+        raise ValueError("模型返回中的 JSON 对象不完整。")
+
+    @staticmethod
+    def _parse_structured_content(
+        content: str,
+        parser: PydanticOutputParser,
+        model_type: type[StructuredModel],
+    ) -> StructuredModel:
+        try:
+            json_text = PaperParser._extract_json_object(content)
+            json_text = re.sub(r",\s*([}\]])", r"\1", json_text)
+            payload = json.loads(json_text)
+        except Exception as json_error:
+            raise ValueError(
+                "模型返回不是完整合法 JSON，且无法从文本中提取可用 JSON。"
+            ) from json_error
+        try:
+            return model_type.model_validate(payload)
+        except Exception as validation_error:
+            raise ValueError(
+                "模型返回 JSON 字段不符合论文解析 schema。"
+            ) from validation_error
+
+    def invoke_structured(
+        self,
+        prompt: str,
+        parser: PydanticOutputParser,
+        model_type: type[StructuredModel],
+    ) -> StructuredModel:
+        response = self.llm.invoke(prompt)
+        try:
+            return self._parse_structured_content(
+                response.content,
+                parser,
+                model_type,
+            )
+        except Exception as parse_error:
+            repair_prompt = f"""
+下面的模型输出没有通过 JSON/schema 校验。请只把它修复成合法 JSON 对象，不要输出 Markdown，不要解释。
+
+目标格式：
+{parser.get_format_instructions()}
+
+原始输出：
+{response.content}
+
+错误信息：
+{parse_error}
+"""
+            repaired = self.llm.invoke(repair_prompt)
+            return self._parse_structured_content(
+                repaired.content,
+                parser,
+                model_type,
+            )
+
     def extract_chunk_notes(
         self,
         chunk: str,
@@ -172,8 +274,11 @@ class PaperParser:
 当前文本块：
 {chunk}
 """
-        response = self.llm.invoke(prompt)
-        return self.chunk_parser.parse(response.content)
+        return self.invoke_structured(
+            prompt,
+            self.chunk_parser,
+            PaperChunkNotes,
+        )
 
     def synthesize_paper_info(
         self,
@@ -200,8 +305,11 @@ class PaperParser:
 全文分块笔记：
 {notes_payload}
 """
-        response = self.llm.invoke(prompt)
-        return self.output_parser.parse(response.content)
+        return self.invoke_structured(
+            prompt,
+            self.output_parser,
+            PaperInfoTmp,
+        )
 
     def compact_notes(
         self,
@@ -260,8 +368,11 @@ class PaperParser:
 待压缩笔记：
 {json.dumps([note.model_dump() for note in notes], ensure_ascii=False)}
 """
-        response = self.llm.invoke(prompt)
-        return self.chunk_parser.parse(response.content)
+        return self.invoke_structured(
+            prompt,
+            self.chunk_parser,
+            PaperChunkNotes,
+        )
 
     def extract_paper_info(self, text: str) -> PaperInfoTmp:
         """Compatibility entry point that still processes all supplied text."""
