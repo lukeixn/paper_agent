@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 from paper_library import PaperLibrary
 from paper_parser import PaperParser
+from schemas import Paper
 
 
 def test_list_existing_library() -> None:
@@ -104,9 +105,24 @@ def test_delete_last_paper_clears_stale_index_files() -> None:
         assert not (data_dir / "id_mapping.json").exists()
 
 
+def test_relative_source_file_inside_data_dir_is_not_prefixed_twice() -> None:
+    library = PaperLibrary(data_dir="data", pdf_dir="papers")
+    paper = Paper(
+        title="Relative Path Paper",
+        source_file="data/relative-path-paper.json",
+    )
+
+    resolved = library._paper_json_path(paper)
+
+    assert resolved == (Path.cwd() / "data" / "relative-path-paper.json")
+    assert "data\\data" not in str(resolved)
+    assert "data/data" not in str(resolved)
+
+
 if __name__ == "__main__":
     test_list_existing_library()
     test_rebuild_faiss_in_temporary_library()
     test_delete_paper_removes_record_pdf_and_rebuilds_index()
     test_delete_last_paper_clears_stale_index_files()
+    test_relative_source_file_inside_data_dir_is_not_prefixed_twice()
     print("paper library tests passed")

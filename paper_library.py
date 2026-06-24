@@ -159,10 +159,17 @@ class PaperLibrary:
 
     def _safe_data_path(self, path: str | Path) -> Path:
         candidate = Path(path)
-        if not candidate.is_absolute():
-            candidate = self.data_dir / candidate
-        resolved = candidate.resolve()
         data_root = self.data_dir.resolve()
+
+        if candidate.is_absolute():
+            resolved = candidate.resolve()
+        else:
+            direct_resolved = candidate.resolve()
+            if data_root == direct_resolved or data_root in direct_resolved.parents:
+                resolved = direct_resolved
+            else:
+                resolved = (self.data_dir / candidate).resolve()
+
         if data_root != resolved and data_root not in resolved.parents:
             raise ValueError(f"论文路径不在数据目录内：{path}")
         return resolved
