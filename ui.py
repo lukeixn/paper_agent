@@ -1263,28 +1263,87 @@ def render_library(settings: dict[str, Any]) -> None:
 
     rows = [
         {
+            "删除": False,
             "标题": paper.title,
             "作者": "、".join(paper.authors[:4]),
             "关键词": "、".join(paper.keywords[:6]),
             "向量维度": len(paper.embedding),
             "来源": paper.discovery_source or "本地导入",
             "原始页面": paper.source_url,
+            "_source_file": paper.source_file,
         }
         for paper in papers
     ]
-    st.dataframe(
+    edited_rows = st.data_editor(
         rows,
+        key="paper_library_delete_editor",
         width="stretch",
         hide_index=True,
+        disabled=[
+            "标题",
+            "作者",
+            "关键词",
+            "向量维度",
+            "来源",
+            "原始页面",
+            "_source_file",
+        ],
         column_config={
+            "删除": st.column_config.CheckboxColumn(width="small"),
             "标题": st.column_config.TextColumn(width="large"),
             "作者": st.column_config.TextColumn(width="medium"),
             "关键词": st.column_config.TextColumn(width="medium"),
             "向量维度": st.column_config.NumberColumn(width="small"),
             "来源": st.column_config.TextColumn(width="small"),
             "原始页面": st.column_config.LinkColumn(width="small"),
+            "_source_file": None,
         },
     )
+
+    selected_for_delete = [row for row in edited_rows if row.get("删除")]
+    if selected_for_delete:
+        st.warning(
+            f"已选择 {len(selected_for_delete)} 篇论文。删除会移除论文 JSON、可匹配的 PDF，并重建 FAISS 索引。"
+        )
+    confirm_delete = st.checkbox(
+        "我确认删除所选论文",
+        value=False,
+        key="confirm_delete_papers",
+        disabled=not selected_for_delete,
+    )
+    delete_clicked = st.button(
+        "删除所选论文",
+        key="delete_selected_papers",
+        type="secondary",
+        width="stretch",
+        disabled=not selected_for_delete or not confirm_delete,
+    )
+    if delete_clicked:
+        try:
+            results, index_result = library.delete_many(
+                [row["_source_file"] for row in selected_for_delete]
+            )
+            successful = [result for result in results if result.success]
+            failed = [result for result in results if not result.success]
+            if successful:
+                deleted_file_count = sum(
+                    len(result.deleted_files or [])
+                    for result in successful
+                )
+                st.success(
+                    f"已删除 {len(successful)} 篇论文，移除 {deleted_file_count} 个文件。"
+                )
+            for result in failed:
+                st.error(f"{result.title or result.json_file}：{result.message}")
+            if index_result:
+                st.caption(
+                    "FAISS 已更新："
+                    f"{index_result['paper_count']} 篇，"
+                    f"{index_result['dimension']} 维。"
+                )
+            st.rerun()
+        except Exception as exc:
+            st.error(f"删除论文失败：{exc}")
 
     with st.expander("论文详情"):
         if papers:

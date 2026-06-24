@@ -21,6 +21,15 @@ class ImportResult:
     message: str = ""
 
 
+@dataclass
+class DeleteResult:
+    title: str
+    success: bool
+    json_file: str = ""
+    deleted_files: list[str] | None = None
+    message: str = ""
+
+
 class PaperLibrary:
     def __init__(
         self,
@@ -58,6 +67,142 @@ class PaperLibrary:
 
     def rebuild_index(self) -> dict[str, Any]:
         return build_faiss(data_dir=self.data_dir)
+
+    def delete_paper(
+        self,
+        paper: Paper | str | Path,
+        *,
+        rebuild_index: bool = True,
+        delete_pdf: bool = True,
+    ) -> tuple[DeleteResult, dict[str, Any] | None]:
+        paper_obj = self._resolve_paper(paper)
+        json_path = self._paper_json_path(paper_obj)
+        deleted_files: list[str] = []
+
+        if not json_path.exists():
+            return (
+                DeleteResult(
+                    title=paper_obj.title,
+                    success=False,
+                    json_file=str(json_path),
+                    deleted_files=[],
+                    message="论文 JSON 文件不存在。",
+                ),
+                None,
+            )
+
+        json_path.unlink()
+        deleted_files.append(str(json_path))
+
+        if delete_pdf:
+            for pdf_path in self._matching_pdf_paths(paper_obj, json_path):
+                pdf_path.unlink(missing_ok=True)
+                deleted_files.append(str(pdf_path))
+
+        index_result = self._refresh_index_after_delete() if rebuild_index else None
+        return (
+            DeleteResult(
+                title=paper_obj.title,
+                success=True,
+                json_file=str(json_path),
+                deleted_files=deleted_files,
+                message="删除成功。",
+            ),
+            index_result,
+        )
+
+    def delete_many(
+        self,
+        papers: list[Paper | str | Path],
+        *,
+        delete_pdf: bool = True,
+    ) -> tuple[list[DeleteResult], dict[str, Any] | None]:
+        results: list[DeleteResult] = []
+        deleted = False
+        for paper in papers:
+            result, _ = self.delete_paper(
+                paper,
+                rebuild_index=False,
+                delete_pdf=delete_pdf,
+            )
+            results.append(result)
+            deleted = deleted or result.success
+
+        index_result = self._refresh_index_after_delete() if deleted else None
+        return results, index_result
+
+    def _resolve_paper(self, paper: Paper | str | Path) -> Paper:
+        if isinstance(paper, Paper):
+            return paper
+
+        value = str(paper)
+        for candidate in self.list_papers():
+            if value in {
+                candidate.title,
+                candidate.source_file,
+                Path(candidate.source_file).name,
+            }:
+                return candidate
+
+        path = self._safe_data_path(value)
+        try:
+            data = json.loads(path.read_text(encoding="utf8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"无法定位论文：{value}") from exc
+        return Paper.from_dict(data, source_file=str(path))
+
+    def _paper_json_path(self, paper: Paper) -> Path:
+        if paper.source_file:
+            return self._safe_data_path(paper.source_file)
+        filename = PaperParser.sanitize_filename(paper.title) + ".json"
+        return self.data_dir / filename
+
+    def _safe_data_path(self, path: str | Path) -> Path:
+        candidate = Path(path)
+        if not candidate.is_absolute():
+            candidate = self.data_dir / candidate
+        resolved = candidate.resolve()
+        data_root = self.data_dir.resolve()
+        if data_root != resolved and data_root not in resolved.parents:
+            raise ValueError(f"论文路径不在数据目录内：{path}")
+        return resolved
+
+    def _matching_pdf_paths(
+        self,
+        paper: Paper,
+        json_path: Path,
+    ) -> list[Path]:
+        names = {
+            PaperParser.sanitize_filename(paper.title) + ".pdf",
+            json_path.with_suffix(".pdf").name,
+        }
+        matches: list[Path] = []
+        for name in names:
+            path = self.pdf_dir / name
+            if path.exists() and path.is_file():
+                matches.append(path)
+        return sorted(set(matches))
+
+    def _refresh_index_after_delete(self) -> dict[str, Any] | None:
+        if self.list_papers():
+            return self.rebuild_index()
+
+        removed: list[str] = []
+        for path in [
+            self.data_dir / "faiss.index",
+            self.data_dir / "id_mapping.json",
+        ]:
+            if path.exists():
+                path.unlink()
+                removed.append(str(path))
+        return {
+            "paper_count": 0,
+            "dimension": 0,
+            "index_path": str(self.data_dir / "faiss.index"),
+            "mapping_path": str(self.data_dir / "id_mapping.json"),
+            "skipped_count": 0,
+            "removed_files": removed,
+        }
 
     def import_pdf(
         self,
