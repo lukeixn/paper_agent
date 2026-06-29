@@ -47,6 +47,13 @@ def test_agent_output_payload_preserves_raw_content() -> None:
     }
 
 
+def test_local_file_url_uses_file_scheme() -> None:
+    url = ui.local_file_url("papers/example.pdf")
+
+    assert url.startswith("file:///")
+    assert url.endswith("/papers/example.pdf")
+
+
 def test_topology_component_embeds_clickable_raw_output() -> None:
     captured: dict[str, str] = {}
 

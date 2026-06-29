@@ -5,6 +5,7 @@ import importlib
 import inspect
 import json
 import os
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -908,6 +909,11 @@ def render_paper_original_access(
         st.caption("未记录原始页面或本地 PDF。")
 
     if pdf_path:
+        st.link_button(
+            "打开本地 PDF",
+            local_file_url(pdf_path),
+            width="stretch",
+        )
         st.download_button(
             "下载原文 PDF",
             data=pdf_path.read_bytes(),
@@ -916,6 +922,10 @@ def render_paper_original_access(
             key=f"{key_prefix}_download_pdf",
             width="stretch",
         )
+
+
+def local_file_url(path: Any) -> str:
+    return Path(path).resolve().as_uri()
 
 
 def render_agents(state: dict[str, Any]) -> None:
