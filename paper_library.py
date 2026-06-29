@@ -68,6 +68,11 @@ class PaperLibrary:
     def rebuild_index(self) -> dict[str, Any]:
         return build_faiss(data_dir=self.data_dir)
 
+    def pdf_path_for(self, paper: Paper) -> Path | None:
+        json_path = self._paper_json_path(paper)
+        matches = self._matching_pdf_paths(paper, json_path)
+        return matches[0] if matches else None
+
     def delete_paper(
         self,
         paper: Paper | str | Path,
@@ -184,6 +189,8 @@ class PaperLibrary:
             PaperParser.sanitize_filename(paper.title) + ".pdf",
             json_path.with_suffix(".pdf").name,
         }
+        if paper.pdf_filename.strip():
+            names.add(Path(paper.pdf_filename).name)
         try:
             data = json.loads(json_path.read_text(encoding="utf8"))
             pdf_filename = data.get("pdf_filename")

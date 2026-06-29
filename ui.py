@@ -868,6 +868,7 @@ def render_papers(state: dict[str, Any]) -> None:
         st.info("没有检索到相关论文。")
         return
 
+    library = PaperLibrary()
     for index, paper in enumerate(papers, start=1):
         with st.expander(f"{index}. {paper.title}", expanded=index <= 2):
             st.markdown(
@@ -879,6 +880,42 @@ def render_papers(state: dict[str, Any]) -> None:
             st.write(paper.summary or paper.abstract or "暂无摘要。")
             if paper.keywords:
                 st.caption("关键词：" + " · ".join(paper.keywords[:8]))
+            render_paper_original_access(
+                paper,
+                library,
+                key_prefix=f"retrieved_{index}",
+            )
+
+
+def render_paper_original_access(
+    paper: Any,
+    library: PaperLibrary,
+    *,
+    key_prefix: str,
+) -> None:
+    source_url = getattr(paper, "source_url", "")
+    pdf_path = library.pdf_path_for(paper)
+
+    links = []
+    if source_url:
+        links.append(f"[原始页面]({source_url})")
+    if pdf_path:
+        links.append(f"本地 PDF：`{pdf_path.name}`")
+
+    if links:
+        st.markdown(" / ".join(links))
+    else:
+        st.caption("未记录原始页面或本地 PDF。")
+
+    if pdf_path:
+        st.download_button(
+            "下载原文 PDF",
+            data=pdf_path.read_bytes(),
+            file_name=pdf_path.name,
+            mime="application/pdf",
+            key=f"{key_prefix}_download_pdf",
+            width="stretch",
+        )
 
 
 def render_agents(state: dict[str, Any]) -> None:
@@ -1270,6 +1307,11 @@ def render_library(settings: dict[str, Any]) -> None:
             "向量维度": len(paper.embedding),
             "来源": paper.discovery_source or "本地导入",
             "原始页面": paper.source_url,
+            "本地 PDF": (
+                library.pdf_path_for(paper).name
+                if library.pdf_path_for(paper)
+                else ""
+            ),
             "_source_file": paper.source_file,
         }
         for paper in papers
@@ -1286,6 +1328,7 @@ def render_library(settings: dict[str, Any]) -> None:
             "向量维度",
             "来源",
             "原始页面",
+            "本地 PDF",
             "_source_file",
         ],
         column_config={
@@ -1296,6 +1339,7 @@ def render_library(settings: dict[str, Any]) -> None:
             "向量维度": st.column_config.NumberColumn(width="small"),
             "来源": st.column_config.TextColumn(width="small"),
             "原始页面": st.column_config.LinkColumn(width="small"),
+            "本地 PDF": st.column_config.TextColumn(width="medium"),
             "_source_file": None,
         },
     )
@@ -1357,6 +1401,11 @@ def render_library(settings: dict[str, Any]) -> None:
             st.subheader(selected.title)
             if selected.authors:
                 st.caption("作者：" + "、".join(selected.authors))
+            render_paper_original_access(
+                selected,
+                library,
+                key_prefix="library_detail",
+            )
             st.write(selected.summary or selected.abstract or "暂无摘要。")
             if selected.contributions:
                 st.markdown("**主要贡献**")

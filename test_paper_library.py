@@ -218,6 +218,69 @@ def test_delete_paper_uses_recorded_pdf_filename() -> None:
         assert not pdf_path.exists()
 
 
+def test_pdf_path_for_uses_recorded_pdf_filename() -> None:
+    with TemporaryDirectory() as directory:
+        data_dir = Path(directory) / "data"
+        pdf_dir = Path(directory) / "papers"
+        data_dir.mkdir()
+        pdf_dir.mkdir()
+        (data_dir / "Paper With PDF.json").write_text(
+            json.dumps(
+                {
+                    "title": "Paper With PDF",
+                    "authors": [],
+                    "abstract": "abstract",
+                    "summary": "summary",
+                    "keywords": [],
+                    "contributions": [],
+                    "limitations": [],
+                    "embedding": [0.1] * 512,
+                    "pdf_filename": "original-file-name.pdf",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf8",
+        )
+        pdf_path = pdf_dir / "original-file-name.pdf"
+        pdf_path.write_bytes(b"pdf")
+
+        library = PaperLibrary(data_dir=data_dir, pdf_dir=pdf_dir)
+        paper = library.list_papers()[0]
+
+        assert paper.pdf_filename == "original-file-name.pdf"
+        assert library.pdf_path_for(paper) == pdf_path
+
+
+def test_pdf_path_for_missing_legacy_pdf_is_optional() -> None:
+    with TemporaryDirectory() as directory:
+        data_dir = Path(directory) / "data"
+        pdf_dir = Path(directory) / "papers"
+        data_dir.mkdir()
+        pdf_dir.mkdir()
+        (data_dir / "Legacy Paper.json").write_text(
+            json.dumps(
+                {
+                    "title": "Legacy Paper",
+                    "authors": [],
+                    "abstract": "abstract",
+                    "summary": "summary",
+                    "keywords": [],
+                    "contributions": [],
+                    "limitations": [],
+                    "embedding": [0.1] * 512,
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf8",
+        )
+
+        library = PaperLibrary(data_dir=data_dir, pdf_dir=pdf_dir)
+        paper = library.list_papers()[0]
+
+        assert paper.pdf_filename == ""
+        assert library.pdf_path_for(paper) is None
+
+
 if __name__ == "__main__":
     test_list_existing_library()
     test_rebuild_faiss_in_temporary_library()
@@ -226,4 +289,6 @@ if __name__ == "__main__":
     test_relative_source_file_inside_data_dir_is_not_prefixed_twice()
     test_import_pdf_replaces_orphan_pdf_after_json_was_deleted()
     test_delete_paper_uses_recorded_pdf_filename()
+    test_pdf_path_for_uses_recorded_pdf_filename()
+    test_pdf_path_for_missing_legacy_pdf_is_optional()
     print("paper library tests passed")

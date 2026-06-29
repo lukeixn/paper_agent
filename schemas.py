@@ -17,6 +17,7 @@ class Paper:
     doi: str = ""
     source_url: str = ""
     discovery_source: str = ""
+    pdf_filename: str = ""
     source_file: str = ""
     score: float = 0.0
 
@@ -40,6 +41,7 @@ class Paper:
             doi=str(data.get("doi", "")),
             source_url=str(data.get("source_url", "")),
             discovery_source=str(data.get("discovery_source", "")),
+            pdf_filename=str(data.get("pdf_filename", "")),
             source_file=source_file,
             score=score,
         )
