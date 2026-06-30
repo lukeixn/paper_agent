@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
+import fitz
 from aggregator import ReportAgent
 from paper_parser import PaperParser
 import ui
@@ -49,14 +52,24 @@ def test_agent_output_payload_preserves_raw_content() -> None:
     }
 
 
-def test_pdf_preview_html_embeds_pdf_data_url(tmp_path) -> None:
+def test_pdf_preview_renders_pdf_page_as_png(tmp_path=None) -> None:
+    if tmp_path is None:
+        with TemporaryDirectory() as directory:
+            test_pdf_preview_renders_pdf_page_as_png(Path(directory))
+        return
+
     pdf_path = tmp_path / "example.pdf"
-    pdf_path.write_bytes(b"%PDF-1.4\n")
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "PDF preview smoke test")
+    document.save(pdf_path)
+    document.close()
 
-    markup = ui.pdf_preview_html(pdf_path)
+    modified_time = pdf_path.stat().st_mtime
+    image = ui.pdf_page_png_bytes(str(pdf_path), modified_time, 0)
 
-    assert "data:application/pdf;base64," in markup
-    assert "JVBERi0xLjQK" in markup
+    assert ui.pdf_page_count(str(pdf_path), modified_time) == 1
+    assert image.startswith(b"\x89PNG")
 
 
 def test_english_ui_switch_changes_core_labels() -> None:
@@ -265,6 +278,10 @@ def test_library_workspace_is_read_only_management() -> None:
             item.label for item in app.selectbox
         ]
         assert "打开本地 PDF" in [button.label for button in app.button]
+        next(
+            button for button in app.button if button.label == "打开本地 PDF"
+        ).click().run()
+        assert len(app.exception) == 0
 
 
 def test_search_workspace_contains_online_and_local_import() -> None:
@@ -347,6 +364,7 @@ if __name__ == "__main__":
     test_topology_layout_matches_selected_agent_count()
     test_conversation_title_is_compact()
     test_agent_output_payload_preserves_raw_content()
+    test_pdf_preview_renders_pdf_page_as_png()
     test_english_ui_switch_changes_core_labels()
     test_english_mode_is_passed_to_llm_prompts()
     test_topology_component_embeds_clickable_raw_output()

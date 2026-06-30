@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-import base64
 import html
 import importlib
 import inspect
 import json
 import os
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
+import fitz
 import streamlit as st
 
 import workflow
@@ -55,7 +56,9 @@ TRANSLATIONS = {
         "no_original": "未记录原始页面或本地 PDF。",
         "open_pdf": "打开本地 PDF",
         "close_pdf": "关闭本地 PDF 预览",
-        "pdf_preview_hint": "如果浏览器无法内嵌预览，请使用下面的下载按钮。",
+        "pdf_preview_hint": "预览以图片方式渲染，不依赖浏览器 PDF 插件。",
+        "pdf_page": "PDF 页码",
+        "pdf_page_caption": "{name} 第 {page}/{total} 页",
         "download_pdf": "下载原文 PDF",
         "pdf_fallback": "当前浏览器无法内嵌预览 PDF，请使用下载按钮打开原文。",
         "no_agents": "本次问题没有触发分析 Agent。",
@@ -143,7 +146,9 @@ TRANSLATIONS = {
         "no_original": "No source page or local PDF is recorded.",
         "open_pdf": "Open local PDF",
         "close_pdf": "Close PDF preview",
-        "pdf_preview_hint": "If the browser cannot preview the PDF inline, use the download button below.",
+        "pdf_preview_hint": "The preview is rendered as images and does not depend on the browser PDF plugin.",
+        "pdf_page": "PDF page",
+        "pdf_page_caption": "{name} page {page}/{total}",
         "download_pdf": "Download original PDF",
         "pdf_fallback": "This browser cannot preview the PDF inline. Please use the download button.",
         "no_agents": "This question did not trigger any analysis agent.",
@@ -1131,11 +1136,7 @@ def render_paper_original_access(
                 False,
             )
         if st.session_state.get(preview_key):
-            st.iframe(
-                pdf_preview_html(pdf_path),
-                height=760,
-                width="stretch",
-            )
+            render_pdf_page_preview(pdf_path, key_prefix=key_prefix)
         st.caption(
             tr("pdf_preview_hint")
         )
@@ -1149,24 +1150,63 @@ def render_paper_original_access(
         )
 
 
-def pdf_preview_html(path: Any) -> str:
-    data = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"""
-    <html>
-      <body style="margin:0;background:#101820;">
-        <object
-          data="data:application/pdf;base64,{data}"
-          type="application/pdf"
-          width="100%"
-          height="740"
-        >
-          <p style="font-family:sans-serif;color:#f5f7fb;padding:1rem;">
-            {tr("pdf_fallback")}
-          </p>
-        </object>
-      </body>
-    </html>
-    """
+@st.cache_data(show_spinner=False)
+def pdf_page_count(path: str, modified_time: float) -> int:
+    del modified_time
+    with fitz.open(path) as document:
+        return document.page_count
+
+
+@st.cache_data(show_spinner=False)
+def pdf_page_png_bytes(
+    path: str,
+    modified_time: float,
+    page_index: int,
+    zoom: float = 1.6,
+) -> bytes:
+    del modified_time
+    with fitz.open(path) as document:
+        page = document.load_page(page_index)
+        pixmap = page.get_pixmap(
+            matrix=fitz.Matrix(zoom, zoom),
+            alpha=False,
+        )
+        return pixmap.tobytes("png")
+
+
+def render_pdf_page_preview(path: Any, *, key_prefix: str) -> None:
+    modified_time = Path(path).stat().st_mtime
+    page_total = pdf_page_count(str(path), modified_time)
+    if page_total <= 0:
+        st.warning(tr("pdf_fallback"))
+        return
+
+    if page_total == 1:
+        page_number = 1
+    else:
+        page_number = st.slider(
+            tr("pdf_page"),
+            min_value=1,
+            max_value=page_total,
+            value=1,
+            key=f"{key_prefix}_pdf_page",
+        )
+
+    image_bytes = pdf_page_png_bytes(
+        str(path),
+        modified_time,
+        page_number - 1,
+    )
+    st.image(
+        image_bytes,
+        caption=tr(
+            "pdf_page_caption",
+            name=Path(path).name,
+            page=page_number,
+            total=page_total,
+        ),
+        width="stretch",
+    )
 
 
 def render_agents(state: dict[str, Any]) -> None:
