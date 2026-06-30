@@ -47,11 +47,14 @@ def test_agent_output_payload_preserves_raw_content() -> None:
     }
 
 
-def test_local_file_url_uses_file_scheme() -> None:
-    url = ui.local_file_url("papers/example.pdf")
+def test_pdf_preview_html_embeds_pdf_data_url(tmp_path) -> None:
+    pdf_path = tmp_path / "example.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n")
 
-    assert url.startswith("file:///")
-    assert url.endswith("/papers/example.pdf")
+    markup = ui.pdf_preview_html(pdf_path)
+
+    assert "data:application/pdf;base64," in markup
+    assert "JVBERi0xLjQK" in markup
 
 
 def test_topology_component_embeds_clickable_raw_output() -> None:

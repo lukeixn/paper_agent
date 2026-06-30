@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import base64
 import html
 import importlib
 import inspect
 import json
 import os
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -909,10 +909,26 @@ def render_paper_original_access(
         st.caption("未记录原始页面或本地 PDF。")
 
     if pdf_path:
-        st.link_button(
-            "打开本地 PDF",
-            local_file_url(pdf_path),
+        preview_key = f"{key_prefix}_pdf_preview_open"
+        if st.button(
+            "关闭本地 PDF 预览"
+            if st.session_state.get(preview_key)
+            else "打开本地 PDF",
+            key=f"{key_prefix}_open_pdf",
             width="stretch",
+        ):
+            st.session_state[preview_key] = not st.session_state.get(
+                preview_key,
+                False,
+            )
+        if st.session_state.get(preview_key):
+            st.iframe(
+                pdf_preview_html(pdf_path),
+                height=760,
+                width="stretch",
+            )
+        st.caption(
+            "如果浏览器无法内嵌预览，请使用下面的下载按钮。"
         )
         st.download_button(
             "下载原文 PDF",
@@ -924,8 +940,24 @@ def render_paper_original_access(
         )
 
 
-def local_file_url(path: Any) -> str:
-    return Path(path).resolve().as_uri()
+def pdf_preview_html(path: Any) -> str:
+    data = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"""
+    <html>
+      <body style="margin:0;background:#101820;">
+        <object
+          data="data:application/pdf;base64,{data}"
+          type="application/pdf"
+          width="100%"
+          height="740"
+        >
+          <p style="font-family:sans-serif;color:#f5f7fb;padding:1rem;">
+            当前浏览器无法内嵌预览 PDF，请使用下载按钮打开原文。
+          </p>
+        </object>
+      </body>
+    </html>
+    """
 
 
 def render_agents(state: dict[str, Any]) -> None:
