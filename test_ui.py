@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+from aggregator import ReportAgent
+from paper_parser import PaperParser
 import ui
 from streamlit.testing.v1 import AppTest
 
@@ -55,6 +57,44 @@ def test_pdf_preview_html_embeds_pdf_data_url(tmp_path) -> None:
 
     assert "data:application/pdf;base64," in markup
     assert "JVBERi0xLjQK" in markup
+
+
+def test_english_ui_switch_changes_core_labels() -> None:
+    app = AppTest.from_file("ui.py", default_timeout=90)
+    app.run()
+
+    app.checkbox[0].set_value(True).run()
+
+    assert len(app.exception) == 0
+    assert [item.label for item in app.radio][:1] == ["Workspace"]
+    assert [item.label for item in app.selectbox][:1] == ["Provider"]
+    assert [item.placeholder for item in app.chat_input] == [
+        "Ask in the current session"
+    ]
+    page_text = "\n".join(item.value for item in app.markdown)
+    assert "Search the paper library" in page_text
+
+
+def test_english_mode_is_passed_to_llm_prompts() -> None:
+    parser = PaperParser.__new__(PaperParser)
+    parser.output_language = "English"
+    assert "Use English for all generated JSON text fields" in (
+        parser.language_instruction()
+    )
+
+    prompt = ReportAgent._report_prompt(
+        {
+            "query": "What is the main limitation?",
+            "standalone_query": "What is the main limitation?",
+            "user_question_history": [],
+            "retrieved_papers": [],
+            "global_context": {
+                "model_config": {"output_language": "English"}
+            },
+        },
+        [],
+    )
+    assert "must be written entirely in English" in prompt
 
 
 def test_topology_component_embeds_clickable_raw_output() -> None:
@@ -219,6 +259,12 @@ def test_library_workspace_is_read_only_management() -> None:
     metrics = {metric.label: metric.value for metric in app.metric}
     assert int(metrics["论文数量"]) > 0
     assert metrics["FAISS 索引"] == "可用"
+    library = ui.PaperLibrary()
+    if any(library.pdf_path_for(paper) for paper in library.list_papers()):
+        assert "从数据库列表预览本地 PDF" in [
+            item.label for item in app.selectbox
+        ]
+        assert "打开本地 PDF" in [button.label for button in app.button]
 
 
 def test_search_workspace_contains_online_and_local_import() -> None:
@@ -301,6 +347,8 @@ if __name__ == "__main__":
     test_topology_layout_matches_selected_agent_count()
     test_conversation_title_is_compact()
     test_agent_output_payload_preserves_raw_content()
+    test_english_ui_switch_changes_core_labels()
+    test_english_mode_is_passed_to_llm_prompts()
     test_topology_component_embeds_clickable_raw_output()
     test_offline_analysis_ui()
     test_library_workspace_is_read_only_management()

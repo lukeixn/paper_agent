@@ -59,6 +59,14 @@ class Router:
         if isinstance(llm, OfflineLLM):
             return None
 
+        english = str(
+            model_config.get("output_language", "")
+        ).lower().startswith("en")
+        reason_language_rule = (
+            "Write the reason in English."
+            if english
+            else "reason 使用中文。"
+        )
         descriptions = "\n".join(
             f"- {name}: {description}"
             for name, description in AGENT_DESCRIPTIONS.items()
@@ -81,6 +89,7 @@ class Router:
 3. 如果问题要求研究选题、方向建议或综合决策，应选择所有相关 Agent。
 4. 原始问题与独立问题冲突时，以本轮原始问题的意图为准。
 5. 只输出一个 JSON 对象，不要输出 Markdown 或其他文字。
+6. {reason_language_rule}
 
 输出格式：
 {{"agents":["method_agent"],"reason":"简洁说明选择依据"}}
@@ -106,10 +115,16 @@ class Router:
 
         reason = str(payload.get("reason", "")).strip()
         route = "multi_agent" if len(agents) > 1 else agents[0]
+        reason_prefix = "LLM route" if english else "LLM 路由"
+        fallback_reason = (
+            "selected required specialists for this question"
+            if english
+            else "根据本轮问题选择所需专家"
+        )
         return RouteDecision(
             route=route,
             agents=agents,
-            reason=f"LLM 路由：{reason or '根据本轮问题选择所需专家'}",
+            reason=f"{reason_prefix}: {reason or fallback_reason}",
         )
 
     @staticmethod
@@ -145,10 +160,25 @@ class Router:
             "适合研究",
         ]
         if any(term in text for term in decision_terms):
+            english = any(
+                term in text
+                for term in [
+                    "research direction",
+                    "topic",
+                    "publish",
+                    "publication",
+                    "worth studying",
+                ]
+            )
             return RouteDecision(
                 route="multi_agent",
                 agents=ALL_AGENTS,
-                reason="规则回退：该问题需要综合趋势、创新、方法和风险进行研究方向决策",
+                reason=(
+                    "Rule fallback: this question needs trends, innovation, "
+                    "methods, and risks for research-direction decisions"
+                    if english
+                    else "规则回退：该问题需要综合趋势、创新、方法和风险进行研究方向决策"
+                ),
             )
 
         if any(word in text for word in ["创新", "novel", "innovation", "贡献", "contribution", "优势"]):
@@ -164,8 +194,27 @@ class Router:
             agents = ALL_AGENTS
 
         route = "multi_agent" if len(agents) > 1 else agents[0]
+        english = any(
+            word in text
+            for word in [
+                "novel",
+                "innovation",
+                "contribution",
+                "method",
+                "architecture",
+                "limitation",
+                "risk",
+                "survey",
+                "overview",
+                "latest",
+            ]
+        )
         return RouteDecision(
             route=route,
             agents=agents,
-            reason=f"规则回退：根据问题意图选择 {', '.join(agents)}",
+            reason=(
+                f"Rule fallback: selected {', '.join(agents)} from the question intent"
+                if english
+                else f"规则回退：根据问题意图选择 {', '.join(agents)}"
+            ),
         )

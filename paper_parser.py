@@ -60,6 +60,9 @@ class PaperParser:
         chunk_size: int = 12000,
     ):
         self.model_config = model_config or {}
+        self.output_language = self.model_config.get(
+            "output_language", "Chinese"
+        )
         self.llm = get_llm(
             provider=self.model_config.get("provider"),
             api_key=self.model_config.get("api_key"),
@@ -83,6 +86,20 @@ class PaperParser:
         self.chunk_size = chunk_size
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
+
+    def language_instruction(self) -> str:
+        if str(self.output_language).lower().startswith("en"):
+            return (
+                "Use English for all generated JSON text fields, including "
+                "abstract, summary, keywords, contributions, limitations, "
+                "and section_summary. Keep paper titles and author names in "
+                "their original published form."
+            )
+        return (
+            "使用中文生成所有归纳性 JSON 文本字段，包括 abstract、summary、"
+            "keywords、contributions、limitations 和 section_summary。论文标题"
+            "和作者名保持原文。"
+        )
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:
@@ -266,7 +283,7 @@ class PaperParser:
 {self.chunk_parser.get_format_instructions()}
 
 要求：
-1. section_summary 使用中文，准确概括当前块。
+1. {self.language_instruction()}
 2. 保留具体方法、实验结果、贡献和作者明确承认的局限。
 3. 如果当前块没有某类信息，返回空列表，不要猜测。
 4. 标题和作者只有在文本中明确出现时才记录。
@@ -296,7 +313,7 @@ class PaperParser:
 {self.output_parser.get_format_instructions()}
 
 要求：
-1. summary、contributions 和 limitations 使用中文。
+1. {self.language_instruction()}
 2. keywords 返回 5 到 10 个关键词。
 3. 综合所有文本块，覆盖研究问题、核心方法、实验设置、主要结果和结论。
 4. 只使用分块笔记中有依据的信息，不要虚构。
@@ -364,6 +381,7 @@ class PaperParser:
 1. 合并重复内容。
 2. 不遗漏方法、实验结果、贡献和局限。
 3. 不添加原笔记中没有的信息。
+4. {self.language_instruction()}
 
 待压缩笔记：
 {json.dumps([note.model_dump() for note in notes], ensure_ascii=False)}

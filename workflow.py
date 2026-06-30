@@ -53,9 +53,19 @@ def format_user_question_history(
 def _offline_standalone_query(
     query: str,
     user_question_history: list[str],
+    output_language: str = "Chinese",
 ) -> str:
     if not user_question_history:
         return query
+    if str(output_language).lower().startswith("en"):
+        previous_questions = "\n".join(
+            f"- {message}" for message in user_question_history
+        )
+        return (
+            "Relevant previous questions:\n"
+            f"{previous_questions}\n"
+            f"Current follow-up: {query}"
+        )
     previous_questions = "\n".join(
         f"- {message}" for message in user_question_history
     )
@@ -75,6 +85,7 @@ def contextualize_query_node(state: MainState) -> dict[str, Any]:
         }
 
     model_config = state.get("global_context", {}).get("model_config", {})
+    output_language = model_config.get("output_language", "Chinese")
     llm = get_llm(
         provider=model_config.get("provider"),
         api_key=model_config.get("api_key"),
@@ -85,6 +96,12 @@ def contextualize_query_node(state: MainState) -> dict[str, Any]:
     standalone_query = _offline_standalone_query(
         query,
         user_question_history,
+        output_language,
+    )
+    language_rule = (
+        "Rewrite the standalone question in English."
+        if str(output_language).lower().startswith("en")
+        else "将独立问题改写为中文。"
     )
     if not isinstance(llm, OfflineLLM):
         prompt = f"""
@@ -97,6 +114,7 @@ def contextualize_query_node(state: MainState) -> dict[str, Any]:
 {query}
 
 强制要求：
+0. {language_rule}
 1. 当前追问是本轮唯一要解决的问题，优先级最高。
 2. 必须利用历史用户问题解析省略的研究对象、代词、比较对象、范围和约束。
 3. 不要把历史问题逐条回答，不要擅自改变当前追问的意图。

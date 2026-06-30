@@ -65,6 +65,18 @@ class BaseAgent(ABC):
             )
         return "\n\n".join(blocks)
 
+    @staticmethod
+    def output_language_instruction(model_config: dict) -> str:
+        if str(model_config.get("output_language", "")).lower().startswith(
+            "en"
+        ):
+            return (
+                "You must write the entire answer in English. Do not output "
+                "Chinese headings, Chinese explanations, or mixed-language "
+                "summaries unless directly quoting a paper title or source text."
+            )
+        return "必须使用中文输出完整分析。"
+
     def maybe_llm(
         self,
         instruction: str,
@@ -80,6 +92,8 @@ class BaseAgent(ABC):
         )
         if isinstance(llm, OfflineLLM):
             return None
+
+        language_instruction = self.output_language_instruction(model_config)
 
         history_text = "\n".join(
             f"{index}. {question}"
@@ -107,6 +121,7 @@ class BaseAgent(ABC):
 {instruction}
 
 强制要求：
+0. {language_instruction}
 1. 输出必须直接回答本轮当前问题。
 2. 历史用户问题只能用于解析当前问题中的省略对象、代词、比较范围和持续约束。
 3. 不要转而回答某个历史问题；历史问题与当前问题冲突时，以当前问题为准。
@@ -127,6 +142,15 @@ class SurveyAgent(BaseAgent):
         )
         if result:
             return result
+        english = str(
+            task["model_config"].get("output_language", "")
+        ).lower().startswith("en")
+        if english:
+            lines = ["These papers mainly reflect the following directions:"]
+            for paper in task["papers"]:
+                keywords = ", ".join(paper.keywords[:5]) or "No keywords"
+                lines.append(f"- {paper.title}: {keywords}")
+            return "\n".join(lines)
         lines = ["这些论文主要体现以下研究方向："]
         for paper in task["papers"]:
             keywords = "、".join(paper.keywords[:5]) or "暂无关键词"
@@ -145,6 +169,17 @@ class InnovationAgent(BaseAgent):
         )
         if result:
             return result
+        english = str(
+            task["model_config"].get("output_language", "")
+        ).lower().startswith("en")
+        if english:
+            lines = ["Main innovation points:"]
+            for paper in task["papers"]:
+                contributions = paper.contributions[:3] or [
+                    paper.summary[:160]
+                ]
+                lines.append(f"- {paper.title}: {'; '.join(contributions)}")
+            return "\n".join(lines)
         lines = ["主要创新点："]
         for paper in task["papers"]:
             contributions = paper.contributions[:3] or [paper.summary[:160]]
@@ -163,6 +198,15 @@ class MethodAgent(BaseAgent):
         )
         if result:
             return result
+        english = str(
+            task["model_config"].get("output_language", "")
+        ).lower().startswith("en")
+        if english:
+            lines = ["Methods and technical routes:"]
+            for paper in task["papers"]:
+                summary = paper.summary or paper.abstract
+                lines.append(f"- {paper.title}: {summary[:260]}")
+            return "\n".join(lines)
         lines = ["方法与技术路线："]
         for paper in task["papers"]:
             summary = paper.summary or paper.abstract
@@ -181,6 +225,17 @@ class LimitationAgent(BaseAgent):
         )
         if result:
             return result
+        english = str(
+            task["model_config"].get("output_language", "")
+        ).lower().startswith("en")
+        if english:
+            lines = ["Limitations and follow-up opportunities:"]
+            for paper in task["papers"]:
+                limitations = paper.limitations[:3] or [
+                    "The source material does not explicitly state limitations."
+                ]
+                lines.append(f"- {paper.title}: {'; '.join(limitations)}")
+            return "\n".join(lines)
         lines = ["局限与后续机会："]
         for paper in task["papers"]:
             limitations = paper.limitations[:3] or ["原始数据未明确给出局限。"]

@@ -25,6 +25,215 @@ AGENT_LABELS = {
     "limitation_agent": "局限与机会",
 }
 
+TRANSLATIONS = {
+    "zh": {
+        "english_ui": "English UI",
+        "new_session": "新建会话",
+        "session": "会话",
+        "workspace": "工作区",
+        "workspace_analysis": "研究分析",
+        "workspace_search": "论文检索",
+        "workspace_library": "论文数据库",
+        "provider": "服务商",
+        "offline_mode": "离线模式",
+        "api_key_placeholder": "仅在当前会话中使用",
+        "model": "模型",
+        "api_base": "API 地址",
+        "temperature": "温度",
+        "top_k": "检索论文数",
+        "api_notice": "API Key 只保存在当前浏览器会话中，不会写入配置文件或报告。",
+        "subtitle": "检索论文库，通过 LangGraph 调度多个研究 Agent，并生成结构化报告。",
+        "langgraph_connected": "LangGraph 已连接",
+        "compatible_mode": "兼容模式",
+        "no_papers": "没有检索到相关论文。",
+        "score": "相关度",
+        "authors": "作者：",
+        "no_abstract": "暂无摘要。",
+        "keywords": "关键词：",
+        "source_page": "原始页面",
+        "local_pdf": "本地 PDF",
+        "no_original": "未记录原始页面或本地 PDF。",
+        "open_pdf": "打开本地 PDF",
+        "close_pdf": "关闭本地 PDF 预览",
+        "pdf_preview_hint": "如果浏览器无法内嵌预览，请使用下面的下载按钮。",
+        "download_pdf": "下载原文 PDF",
+        "pdf_fallback": "当前浏览器无法内嵌预览 PDF，请使用下载按钮打开原文。",
+        "no_agents": "本次问题没有触发分析 Agent。",
+        "metric_papers": "检索论文",
+        "metric_agents": "执行 Agent",
+        "metric_route": "路由",
+        "overview": "概览",
+        "papers": "论文",
+        "agent_analysis": "Agent 分析",
+        "followup_answer": "本轮回答",
+        "full_report": "完整报告",
+        "execution_path": "执行路径",
+        "execution_path_value": "检索 → 路由 → 并行 Agent → ReportAgent",
+        "download_report": "下载 Markdown 报告",
+        "search_header": "论文检索",
+        "search_caption": "在线寻找论文，或将已经下载到本地的 PDF 手动加入论文库。",
+        "online_search": "在线搜索",
+        "local_pdf_import": "本地 PDF 导入",
+        "library_header": "论文数据库",
+        "library_caption": "查看当前论文库、论文来源和 FAISS 索引状态。",
+        "paper_count": "论文数量",
+        "embedding_dim": "Embedding 维度",
+        "faiss_index": "FAISS 索引",
+        "available": "可用",
+        "not_built": "未建立",
+        "filter_papers": "筛选论文",
+        "filter_placeholder": "输入标题、作者或关键词",
+        "delete": "删除",
+        "title": "标题",
+        "source": "来源",
+        "local_import": "本地导入",
+        "select_pdf_preview": "从数据库列表预览本地 PDF",
+        "select_pdf_placeholder": "选择有本地 PDF 的论文",
+        "no_pdf_in_filter": "当前筛选结果中没有可预览的本地 PDF。",
+        "paper_details": "论文详情",
+        "select_paper": "选择论文",
+        "contributions": "主要贡献",
+        "no_filtered_paper": "当前筛选条件下没有论文。",
+        "confirm_delete": "我确认删除所选论文",
+        "delete_selected": "删除所选论文",
+        "delete_warning": "已选择 {count} 篇论文。删除会移除论文 JSON、可匹配的 PDF，并重建 FAISS 索引。",
+        "delete_success": "已删除 {count} 篇论文，移除 {files} 个文件。",
+        "faiss_updated": "FAISS 已更新：{papers} 篇，{dim} 维。",
+        "delete_failed": "删除论文失败：{error}",
+        "new_conversation_info": "这是一个新会话。输入研究主题后，本会话中的后续问题都会作为连续追问。",
+        "chat_placeholder": "在当前会话中继续提问",
+        "missing_api_key": "请输入 API Key，或选择离线模式。",
+        "understand_question": "正在理解研究问题…",
+        "retrieving_papers": "正在检索相关论文…",
+        "routing_agents": "正在选择研究 Agent…",
+        "agents_running": "研究 Agent 正在并行分析…",
+        "summarizing_report": "正在汇总最终报告…",
+        "analysis_complete": "分析完成",
+        "retrieved_count_routing": "已检索 {count} 篇论文，正在路由任务",
+        "running_agent_count": "{count} 个 Agent 正在并行分析",
+        "agent_finished": "{agent} 已完成",
+        "final_report_ready": "最终报告已生成",
+    },
+    "en": {
+        "english_ui": "English UI",
+        "new_session": "New session",
+        "session": "Sessions",
+        "workspace": "Workspace",
+        "workspace_analysis": "Research analysis",
+        "workspace_search": "Paper search",
+        "workspace_library": "Paper library",
+        "provider": "Provider",
+        "offline_mode": "Offline mode",
+        "api_key_placeholder": "Only used in this browser session",
+        "model": "Model",
+        "api_base": "API base URL",
+        "temperature": "Temperature",
+        "top_k": "Papers to retrieve",
+        "api_notice": "API Key is kept only in the current browser session. It is not written to config files or reports.",
+        "subtitle": "Search the paper library, orchestrate research agents with LangGraph, and generate structured answers.",
+        "langgraph_connected": "LangGraph connected",
+        "compatible_mode": "Compatibility mode",
+        "no_papers": "No relevant papers were retrieved.",
+        "score": "Score",
+        "authors": "Authors: ",
+        "no_abstract": "No abstract available.",
+        "keywords": "Keywords: ",
+        "source_page": "Source page",
+        "local_pdf": "Local PDF",
+        "no_original": "No source page or local PDF is recorded.",
+        "open_pdf": "Open local PDF",
+        "close_pdf": "Close PDF preview",
+        "pdf_preview_hint": "If the browser cannot preview the PDF inline, use the download button below.",
+        "download_pdf": "Download original PDF",
+        "pdf_fallback": "This browser cannot preview the PDF inline. Please use the download button.",
+        "no_agents": "This question did not trigger any analysis agent.",
+        "metric_papers": "Retrieved papers",
+        "metric_agents": "Executed agents",
+        "metric_route": "Route",
+        "overview": "Overview",
+        "papers": "Papers",
+        "agent_analysis": "Agent analysis",
+        "followup_answer": "This turn",
+        "full_report": "Full report",
+        "execution_path": "Execution path",
+        "execution_path_value": "Retrieve -> Route -> Parallel agents -> ReportAgent",
+        "download_report": "Download Markdown report",
+        "search_header": "Paper search",
+        "search_caption": "Search papers online, or manually add local PDFs that you have already downloaded.",
+        "online_search": "Online search",
+        "local_pdf_import": "Local PDF import",
+        "library_header": "Paper library",
+        "library_caption": "View papers, source links, local PDFs, and FAISS index status.",
+        "paper_count": "Papers",
+        "embedding_dim": "Embedding dimension",
+        "faiss_index": "FAISS index",
+        "available": "Available",
+        "not_built": "Not built",
+        "filter_papers": "Filter papers",
+        "filter_placeholder": "Enter title, author, or keyword",
+        "delete": "Delete",
+        "title": "Title",
+        "source": "Source",
+        "local_import": "Local import",
+        "select_pdf_preview": "Preview a local PDF from the library",
+        "select_pdf_placeholder": "Select a paper with a local PDF",
+        "no_pdf_in_filter": "No local PDF is available under the current filter.",
+        "paper_details": "Paper details",
+        "select_paper": "Select paper",
+        "contributions": "Main contributions",
+        "no_filtered_paper": "No paper matches the current filter.",
+        "confirm_delete": "I confirm deleting the selected papers",
+        "delete_selected": "Delete selected papers",
+        "delete_warning": "Selected {count} paper(s). Deletion removes paper JSON, matching PDFs, and rebuilds the FAISS index.",
+        "delete_success": "Deleted {count} paper(s), removed {files} file(s).",
+        "faiss_updated": "FAISS updated: {papers} papers, {dim} dimensions.",
+        "delete_failed": "Failed to delete papers: {error}",
+        "new_conversation_info": "This is a new session. Enter a research topic; later questions in this session will be treated as follow-ups.",
+        "chat_placeholder": "Ask in the current session",
+        "missing_api_key": "Enter an API Key, or choose offline mode.",
+        "understand_question": "Understanding the research question...",
+        "retrieving_papers": "Retrieving related papers...",
+        "routing_agents": "Selecting research agents...",
+        "agents_running": "Research agents are running in parallel...",
+        "summarizing_report": "Synthesizing final answer...",
+        "analysis_complete": "Analysis complete",
+        "retrieved_count_routing": "Retrieved {count} paper(s); routing tasks...",
+        "running_agent_count": "{count} agent(s) are running in parallel",
+        "agent_finished": "{agent} finished",
+        "final_report_ready": "Final report generated",
+    }
+}
+
+
+def ui_language() -> str:
+    return "en" if st.session_state.get("ui_language") == "en" else "zh"
+
+
+def tr(key: str, **kwargs) -> str:
+    value = TRANSLATIONS.get(ui_language(), {}).get(key, key)
+    return value.format(**kwargs) if kwargs else value
+
+
+def agent_label(agent_name: str) -> str:
+    if ui_language() == "en":
+        return {
+            "survey_agent": "Survey",
+            "innovation_agent": "Innovation",
+            "method_agent": "Method comparison",
+            "limitation_agent": "Limitations & opportunities",
+        }.get(agent_name, agent_name)
+    return AGENT_LABELS.get(agent_name, agent_name)
+
+
+def render_language_switch() -> None:
+    english_enabled = st.sidebar.checkbox(
+        tr("english_ui"),
+        value=ui_language() == "en",
+        key="ui_language_english",
+    )
+    st.session_state["ui_language"] = "en" if english_enabled else "zh"
+
+
 WORKFLOW_LABELS = {
     "contextualize": ("理解问题", "结合连续对话重写追问"),
     "retrieve": ("检索论文", "从本地论文库选取证据"),
@@ -131,9 +340,9 @@ def create_conversation() -> str:
 
 def render_conversation_sidebar() -> None:
     initialize_conversations()
-    st.sidebar.subheader("会话")
+    st.sidebar.subheader(tr("session"))
     if st.sidebar.button(
-        "新建会话",
+        tr("new_session"),
         key="new_conversation",
         width="stretch",
     ):
@@ -814,14 +1023,14 @@ def default_model(provider: str) -> str:
 
 
 def model_settings() -> dict[str, Any]:
-    st.sidebar.subheader("模型连接")
+    st.sidebar.subheader("Model connection" if ui_language() == "en" else "模型连接")
     provider = st.sidebar.selectbox(
-        "服务商",
+        tr("provider"),
         ["deepseek", "openai", "offline"],
         format_func=lambda value: {
             "deepseek": "DeepSeek",
             "openai": "OpenAI",
-            "offline": "离线模式",
+            "offline": tr("offline_mode"),
         }[value],
     )
 
@@ -832,26 +1041,26 @@ def model_settings() -> dict[str, Any]:
         api_key = st.sidebar.text_input(
             "API Key",
             type="password",
-            placeholder="仅在当前会话中使用",
+            placeholder=tr("api_key_placeholder"),
         )
         model_name = st.sidebar.text_input(
-            "模型",
+            tr("model"),
             value=default_model(provider),
         )
         if provider == "deepseek":
             base_url = st.sidebar.text_input(
-                "API 地址",
+                tr("api_base"),
                 value=cfg["MODEL"]["DEEPSEEK"]["BASE_URL"],
             )
 
     temperature = st.sidebar.slider(
-        "温度",
+        tr("temperature"),
         min_value=0.0,
         max_value=1.5,
         value=float(cfg["MODEL"].get("TEMPERATURE", 0.3)),
         step=0.1,
     )
-    top_k = st.sidebar.slider("检索论文数", 1, 30, 10)
+    top_k = st.sidebar.slider(tr("top_k"), 1, 30, 10)
 
     return {
         "provider": provider,
@@ -866,21 +1075,21 @@ def model_settings() -> dict[str, Any]:
 def render_papers(state: dict[str, Any]) -> None:
     papers = state.get("retrieved_papers", [])
     if not papers:
-        st.info("没有检索到相关论文。")
+        st.info(tr("no_papers"))
         return
 
     library = PaperLibrary()
     for index, paper in enumerate(papers, start=1):
         with st.expander(f"{index}. {paper.title}", expanded=index <= 2):
             st.markdown(
-                f'<span class="paper-score">相关度 {paper.score:.4f}</span>',
+                f'<span class="paper-score">{tr("score")} {paper.score:.4f}</span>',
                 unsafe_allow_html=True,
             )
             if paper.authors:
-                st.caption("作者：" + "、".join(paper.authors))
-            st.write(paper.summary or paper.abstract or "暂无摘要。")
+                st.caption(tr("authors") + "、".join(paper.authors))
+            st.write(paper.summary or paper.abstract or tr("no_abstract"))
             if paper.keywords:
-                st.caption("关键词：" + " · ".join(paper.keywords[:8]))
+                st.caption(tr("keywords") + " · ".join(paper.keywords[:8]))
             render_paper_original_access(
                 paper,
                 library,
@@ -899,21 +1108,21 @@ def render_paper_original_access(
 
     links = []
     if source_url:
-        links.append(f"[原始页面]({source_url})")
+        links.append(f"[{tr('source_page')}]({source_url})")
     if pdf_path:
-        links.append(f"本地 PDF：`{pdf_path.name}`")
+        links.append(f"{tr('local_pdf')}: `{pdf_path.name}`")
 
     if links:
         st.markdown(" / ".join(links))
     else:
-        st.caption("未记录原始页面或本地 PDF。")
+        st.caption(tr("no_original"))
 
     if pdf_path:
         preview_key = f"{key_prefix}_pdf_preview_open"
         if st.button(
-            "关闭本地 PDF 预览"
+            tr("close_pdf")
             if st.session_state.get(preview_key)
-            else "打开本地 PDF",
+            else tr("open_pdf"),
             key=f"{key_prefix}_open_pdf",
             width="stretch",
         ):
@@ -928,10 +1137,10 @@ def render_paper_original_access(
                 width="stretch",
             )
         st.caption(
-            "如果浏览器无法内嵌预览，请使用下面的下载按钮。"
+            tr("pdf_preview_hint")
         )
         st.download_button(
-            "下载原文 PDF",
+            tr("download_pdf"),
             data=pdf_path.read_bytes(),
             file_name=pdf_path.name,
             mime="application/pdf",
@@ -952,7 +1161,7 @@ def pdf_preview_html(path: Any) -> str:
           height="740"
         >
           <p style="font-family:sans-serif;color:#f5f7fb;padding:1rem;">
-            当前浏览器无法内嵌预览 PDF，请使用下载按钮打开原文。
+            {tr("pdf_fallback")}
           </p>
         </object>
       </body>
@@ -963,11 +1172,11 @@ def pdf_preview_html(path: Any) -> str:
 def render_agents(state: dict[str, Any]) -> None:
     results = state.get("agent_results", {})
     if not results:
-        st.info("本次问题没有触发分析 Agent。")
+        st.info(tr("no_agents"))
         return
 
     for agent_name, result in results.items():
-        st.subheader(AGENT_LABELS.get(agent_name, agent_name))
+        st.subheader(agent_label(agent_name))
         st.markdown(result)
 
 
@@ -977,23 +1186,23 @@ def render_result(state: dict[str, Any]) -> None:
     selected_agents = state.get("selected_agents", [])
 
     metric_columns = st.columns(3)
-    metric_columns[0].metric("检索论文", len(papers))
-    metric_columns[1].metric("执行 Agent", len(results))
-    metric_columns[2].metric("路由", state.get("route", ""))
+    metric_columns[0].metric(tr("metric_papers"), len(papers))
+    metric_columns[1].metric(tr("metric_agents"), len(results))
+    metric_columns[2].metric(tr("metric_route"), state.get("route", ""))
 
     final_tab_label = (
-        "本轮回答"
+        tr("followup_answer")
         if state.get("response_mode") == "follow_up"
-        else "完整报告"
+        else tr("full_report")
     )
-    tabs = st.tabs(["概览", "论文", "Agent 分析", final_tab_label])
+    tabs = st.tabs([tr("overview"), tr("papers"), tr("agent_analysis"), final_tab_label])
     with tabs[0]:
-        st.subheader("执行路径")
-        st.write("检索 → 路由 → 并行 Agent → ReportAgent")
+        st.subheader(tr("execution_path"))
+        st.write(tr("execution_path_value"))
         if selected_agents:
             st.markdown(
                 "\n".join(
-                    f"- {AGENT_LABELS.get(name, name)}"
+                    f"- {agent_label(name)}"
                     for name in selected_agents
                 )
             )
@@ -1015,7 +1224,7 @@ def render_result(state: dict[str, Any]) -> None:
         report = state.get("final_report", "")
         st.markdown(report)
         st.download_button(
-            "下载 Markdown 报告",
+            tr("download_report"),
             data=report.encode("utf-8"),
             file_name="paper-agent-report.md",
             mime="text/markdown",
@@ -1024,7 +1233,7 @@ def render_result(state: dict[str, Any]) -> None:
 
 
 def runtime_model_config(settings: dict[str, Any]) -> dict[str, Any]:
-    return {
+    model_config = {
         key: settings[key]
         for key in [
             "provider",
@@ -1034,6 +1243,10 @@ def runtime_model_config(settings: dict[str, Any]) -> dict[str, Any]:
             "temperature",
         ]
     }
+    model_config["output_language"] = (
+        "English" if ui_language() == "en" else "Chinese"
+    )
+    return model_config
 
 
 def has_online_credentials(settings: dict[str, Any]) -> bool:
@@ -1293,9 +1506,9 @@ def render_local_pdf_import(
 
 def render_academic_search(settings: dict[str, Any]) -> None:
     library = PaperLibrary()
-    st.header("论文检索")
-    st.caption("在线寻找论文，或将已经下载到本地的 PDF 手动加入论文库。")
-    online_tab, local_tab = st.tabs(["在线搜索", "本地 PDF 导入"])
+    st.header(tr("search_header"))
+    st.caption(tr("search_caption"))
+    online_tab, local_tab = st.tabs([tr("online_search"), tr("local_pdf_import")])
     with online_tab:
         render_online_academic_search(settings, library)
     with local_tab:
@@ -1306,25 +1519,33 @@ def render_library(settings: dict[str, Any]) -> None:
     del settings
     library = PaperLibrary()
     stats = library.stats()
+    delete_col = tr("delete")
+    title_col = tr("title")
+    authors_col = tr("authors").rstrip("：: ")
+    keywords_col = tr("keywords").rstrip("：: ")
+    embedding_col = tr("embedding_dim")
+    source_col = tr("source")
+    source_page_col = tr("source_page")
+    local_pdf_col = tr("local_pdf")
 
-    st.header("论文数据库")
-    st.caption("查看当前论文库、论文来源和 FAISS 索引状态。")
+    st.header(tr("library_header"))
+    st.caption(tr("library_caption"))
 
     columns = st.columns(3)
-    columns[0].metric("论文数量", stats["paper_count"])
+    columns[0].metric(tr("paper_count"), stats["paper_count"])
     columns[1].metric(
-        "Embedding 维度",
-        stats["embedding_dimension"] or "不一致",
+        tr("embedding_dim"),
+        stats["embedding_dimension"] or ("Inconsistent" if ui_language() == "en" else "不一致"),
     )
     columns[2].metric(
-        "FAISS 索引",
-        "可用" if stats["index_exists"] and stats["mapping_exists"] else "未建立",
+        tr("faiss_index"),
+        tr("available") if stats["index_exists"] and stats["mapping_exists"] else tr("not_built"),
     )
 
     papers = library.list_papers()
     search_text = st.text_input(
-        "筛选论文",
-        placeholder="输入标题、作者或关键词",
+        tr("filter_papers"),
+        placeholder=tr("filter_placeholder"),
     ).strip().lower()
     if search_text:
         papers = [
@@ -1342,14 +1563,14 @@ def render_library(settings: dict[str, Any]) -> None:
 
     rows = [
         {
-            "删除": False,
-            "标题": paper.title,
-            "作者": "、".join(paper.authors[:4]),
-            "关键词": "、".join(paper.keywords[:6]),
-            "向量维度": len(paper.embedding),
-            "来源": paper.discovery_source or "本地导入",
-            "原始页面": paper.source_url,
-            "本地 PDF": (
+            delete_col: False,
+            title_col: paper.title,
+            authors_col: "、".join(paper.authors[:4]),
+            keywords_col: "、".join(paper.keywords[:6]),
+            embedding_col: len(paper.embedding),
+            source_col: paper.discovery_source or tr("local_import"),
+            source_page_col: paper.source_url,
+            local_pdf_col: (
                 library.pdf_path_for(paper).name
                 if library.pdf_path_for(paper)
                 else ""
@@ -1364,41 +1585,63 @@ def render_library(settings: dict[str, Any]) -> None:
         width="stretch",
         hide_index=True,
         disabled=[
-            "标题",
-            "作者",
-            "关键词",
-            "向量维度",
-            "来源",
-            "原始页面",
-            "本地 PDF",
+            title_col,
+            authors_col,
+            keywords_col,
+            embedding_col,
+            source_col,
+            source_page_col,
+            local_pdf_col,
             "_source_file",
         ],
         column_config={
-            "删除": st.column_config.CheckboxColumn(width="small"),
-            "标题": st.column_config.TextColumn(width="large"),
-            "作者": st.column_config.TextColumn(width="medium"),
-            "关键词": st.column_config.TextColumn(width="medium"),
-            "向量维度": st.column_config.NumberColumn(width="small"),
-            "来源": st.column_config.TextColumn(width="small"),
-            "原始页面": st.column_config.LinkColumn(width="small"),
-            "本地 PDF": st.column_config.TextColumn(width="medium"),
+            delete_col: st.column_config.CheckboxColumn(width="small"),
+            title_col: st.column_config.TextColumn(width="large"),
+            authors_col: st.column_config.TextColumn(width="medium"),
+            keywords_col: st.column_config.TextColumn(width="medium"),
+            embedding_col: st.column_config.NumberColumn(width="small"),
+            source_col: st.column_config.TextColumn(width="small"),
+            source_page_col: st.column_config.LinkColumn(width="small"),
+            local_pdf_col: st.column_config.TextColumn(width="medium"),
             "_source_file": None,
         },
     )
 
-    selected_for_delete = [row for row in edited_rows if row.get("删除")]
+    pdf_papers = [
+        paper
+        for paper in papers
+        if library.pdf_path_for(paper)
+    ]
+    if pdf_papers:
+        selected_pdf_title = st.selectbox(
+            tr("select_pdf_preview"),
+            [paper.title for paper in pdf_papers],
+            key="library_pdf_preview_select",
+        )
+        selected_pdf = next(
+            paper for paper in pdf_papers if paper.title == selected_pdf_title
+        )
+        render_paper_original_access(
+            selected_pdf,
+            library,
+            key_prefix="library_table_preview",
+        )
+    else:
+        st.caption(tr("no_pdf_in_filter"))
+
+    selected_for_delete = [row for row in edited_rows if row.get(delete_col)]
     if selected_for_delete:
         st.warning(
-            f"已选择 {len(selected_for_delete)} 篇论文。删除会移除论文 JSON、可匹配的 PDF，并重建 FAISS 索引。"
+            tr("delete_warning", count=len(selected_for_delete))
         )
     confirm_delete = st.checkbox(
-        "我确认删除所选论文",
+        tr("confirm_delete"),
         value=False,
         key="confirm_delete_papers",
         disabled=not selected_for_delete,
     )
     delete_clicked = st.button(
-        "删除所选论文",
+        tr("delete_selected"),
         key="delete_selected_papers",
         type="secondary",
         width="stretch",
@@ -1417,24 +1660,30 @@ def render_library(settings: dict[str, Any]) -> None:
                     for result in successful
                 )
                 st.success(
-                    f"已删除 {len(successful)} 篇论文，移除 {deleted_file_count} 个文件。"
+                    tr(
+                        "delete_success",
+                        count=len(successful),
+                        files=deleted_file_count,
+                    )
                 )
             for result in failed:
                 st.error(f"{result.title or result.json_file}：{result.message}")
             if index_result:
                 st.caption(
-                    "FAISS 已更新："
-                    f"{index_result['paper_count']} 篇，"
-                    f"{index_result['dimension']} 维。"
+                    tr(
+                        "faiss_updated",
+                        papers=index_result["paper_count"],
+                        dim=index_result["dimension"],
+                    )
                 )
             st.rerun()
         except Exception as exc:
-            st.error(f"删除论文失败：{exc}")
+            st.error(tr("delete_failed", error=exc))
 
-    with st.expander("论文详情"):
+    with st.expander(tr("paper_details")):
         if papers:
             selected_title = st.selectbox(
-                "选择论文",
+                tr("select_paper"),
                 [paper.title for paper in papers],
             )
             selected = next(
@@ -1442,19 +1691,19 @@ def render_library(settings: dict[str, Any]) -> None:
             )
             st.subheader(selected.title)
             if selected.authors:
-                st.caption("作者：" + "、".join(selected.authors))
+                st.caption(tr("authors") + "、".join(selected.authors))
             render_paper_original_access(
                 selected,
                 library,
                 key_prefix="library_detail",
             )
-            st.write(selected.summary or selected.abstract or "暂无摘要。")
+            st.write(selected.summary or selected.abstract or tr("no_abstract"))
             if selected.contributions:
-                st.markdown("**主要贡献**")
+                st.markdown(f"**{tr('contributions')}**")
                 for contribution in selected.contributions:
                     st.markdown(f"- {contribution}")
         else:
-            st.info("当前筛选条件下没有论文。")
+            st.info(tr("no_filtered_paper"))
 
 
 def render_agent_skills() -> None:
@@ -1642,26 +1891,33 @@ def main() -> None:
     )
     apply_styles()
 
+    render_language_switch()
     settings = model_settings()
     st.sidebar.divider()
     workspace = st.sidebar.radio(
-        "工作区",
+        tr("workspace"),
         ["研究分析", "论文检索", "论文数据库", "Agent Skills"],
+        format_func=lambda value: {
+            "研究分析": tr("workspace_analysis"),
+            "论文检索": tr("workspace_search"),
+            "论文数据库": tr("workspace_library"),
+            "Agent Skills": "Agent Skills",
+        }[value],
     )
     st.sidebar.divider()
     st.sidebar.caption(
-        "API Key 只保存在当前浏览器会话中，不会写入配置文件或报告。"
+        tr("api_notice")
     )
 
     st.markdown('<h1 class="app-title">Paper Agent</h1>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="app-subtitle">检索论文库，通过 LangGraph 调度多个研究 Agent，并生成结构化报告。</p>',
+        f'<p class="app-subtitle">{tr("subtitle")}</p>',
         unsafe_allow_html=True,
     )
     graph_status = (
-        "LangGraph 已连接"
+        tr("langgraph_connected")
         if current_workflow().langgraph_available()
-        else "兼容模式"
+        else tr("compatible_mode")
     )
     st.markdown(
         f'<div class="status-line"><span class="status-dot"></span>{graph_status}</div>',
@@ -1714,7 +1970,7 @@ def main() -> None:
     with chat_column:
         if not messages:
             st.info(
-                "这是一个新会话。输入研究主题后，本会话中的后续问题都会作为连续追问。"
+                tr("new_conversation_info")
             )
 
         for message in messages:
@@ -1722,7 +1978,7 @@ def main() -> None:
                 st.markdown(message["content"])
 
         query = st.chat_input(
-            "在当前会话中继续提问",
+            tr("chat_placeholder"),
         )
 
     if query:
@@ -1734,7 +1990,7 @@ def main() -> None:
                 else "OPENAI_API_KEY"
             )
         ):
-            st.warning("请输入 API Key，或选择离线模式。")
+            st.warning(tr("missing_api_key"))
         else:
             history = list(messages)
             if not messages:
@@ -1760,7 +2016,7 @@ def main() -> None:
                 with st.chat_message("user"):
                     st.markdown(query.strip())
                 with st.status(
-                    "正在理解研究问题…",
+                    tr("understand_question"),
                     expanded=True,
                 ) as status:
                     state: dict[str, Any] = {}
@@ -1777,8 +2033,8 @@ def main() -> None:
                         if node == "contextualize" and event["status"] == "completed":
                             node_status["contextualize"] = "completed"
                             node_status["retrieve"] = "running"
-                            event_line.write("正在检索相关论文")
-                            status.update(label="正在检索相关论文…")
+                            event_line.write(tr("retrieving_papers"))
+                            status.update(label=tr("retrieving_papers"))
                         elif node == "retrieve":
                             node_status["retrieve"] = "completed"
                             node_status["route"] = "running"
@@ -1786,9 +2042,9 @@ def main() -> None:
                                 state.get("retrieved_papers", [])
                             )
                             event_line.write(
-                                f"已检索 {paper_count} 篇论文，正在路由任务"
+                                tr("retrieved_count_routing", count=paper_count)
                             )
-                            status.update(label="正在选择研究 Agent…")
+                            status.update(label=tr("routing_agents"))
                         elif node == "route":
                             node_status["route"] = "completed"
                             selected_agents = state.get(
@@ -1799,9 +2055,12 @@ def main() -> None:
                                 for name in selected_agents
                             }
                             event_line.write(
-                                f"{len(selected_agents)} 个 Agent 正在并行分析"
+                                tr(
+                                    "running_agent_count",
+                                    count=len(selected_agents),
+                                )
                             )
-                            status.update(label="研究 Agent 正在并行分析…")
+                            status.update(label=tr("agents_running"))
                         elif node == "run_agent":
                             agent_name = event.get("agent_name", "")
                             if agent_name:
@@ -1812,15 +2071,17 @@ def main() -> None:
                                     else "completed"
                                 )
                                 event_line.write(
-                                    f"{AGENT_LABELS.get(agent_name, agent_name)}"
-                                    " 已完成"
+                                    tr(
+                                        "agent_finished",
+                                        agent=agent_label(agent_name),
+                                    )
                                 )
                             if set(selected_agents) <= completed_agents:
                                 node_status["report_agent"] = "running"
-                                status.update(label="正在汇总最终报告…")
+                                status.update(label=tr("summarizing_report"))
                         elif node == "report_agent":
                             node_status["report_agent"] = "completed"
-                            event_line.write("最终报告已生成")
+                            event_line.write(tr("final_report_ready"))
 
                         render_workflow_diagram(
                             graph_placeholder,
@@ -1834,7 +2095,7 @@ def main() -> None:
                         )
 
                     status.update(
-                        label="分析完成",
+                        label=tr("analysis_complete"),
                         state="complete",
                         expanded=False,
                     )

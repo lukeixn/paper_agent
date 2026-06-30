@@ -45,6 +45,21 @@ class ReportAgent:
         return self._fallback_report(state, outputs)
 
     @staticmethod
+    def output_language_instruction(state: MainState) -> str:
+        model_config = state.get("global_context", {}).get(
+            "model_config", {}
+        )
+        if str(model_config.get("output_language", "")).lower().startswith(
+            "en"
+        ):
+            return (
+                "The final answer must be written entirely in English. Do not "
+                "use Chinese headings or Chinese section names unless directly "
+                "quoting source material."
+            )
+        return "最终输出必须使用中文。"
+
+    @staticmethod
     def _report_prompt(
         state: MainState,
         outputs: list[AgentOutput],
@@ -63,6 +78,7 @@ class ReportAgent:
                 start=1,
             )
         )
+        language_instruction = ReportAgent.output_language_instruction(state)
         if ReportAgent.response_mode(state) == "follow_up":
             return f"""
 你是连续研究会话中的最终回答 Agent。请综合多个独立专家 Agent 的本轮分析，
@@ -84,6 +100,7 @@ class ReportAgent:
 {sections}
 
 强制要求：
+0. {language_instruction}
 1. 开头直接给出本轮追问的答案或判断，不要使用“执行摘要”。
 2. 根据问题自然组织内容，不要强制套用趋势、创新、方法、局限等固定章节。
 3. 不要重复上一轮问题的背景和已经明确的结论，除非它们是回答本轮问题所必需的。
@@ -114,6 +131,7 @@ class ReportAgent:
 
 强制要求：
 0. 最终报告必须直接回答本轮当前问题。历史问题只用于解析上下文，不得喧宾夺主。
+0.1. {language_instruction}
 1. 开头给出简洁的执行摘要。
 2. 综合不同 Agent 的观点，而不是简单拼接。
 3. 明确区分研究趋势、创新、方法、局限和研究机会。
@@ -125,12 +143,14 @@ class ReportAgent:
         state: MainState,
         outputs: list[AgentOutput],
     ) -> str:
+        english = str(
+            state.get("global_context", {})
+            .get("model_config", {})
+            .get("output_language", "")
+        ).lower().startswith("en")
         if ReportAgent.response_mode(state) == "follow_up":
-            lines = [
-                "# 本轮回答",
-                "",
-                state.get("query", ""),
-            ]
+            title = "# This Turn" if english else "# 本轮回答"
+            lines = [title, "", state.get("query", "")]
             for output in outputs:
                 if output["error"]:
                     continue
@@ -138,17 +158,35 @@ class ReportAgent:
                     ["", f"### {output['title']}", output["content"]]
                 )
             if len(lines) == 3:
-                lines.extend(["", "本轮 Agent 未能生成有效分析。"])
+                lines.extend(
+                    [
+                        "",
+                        "No effective agent analysis was generated for this turn."
+                        if english
+                        else "本轮 Agent 未能生成有效分析。",
+                    ]
+                )
             return "\n".join(lines).strip() + "\n"
 
-        lines = [
-            "# 论文 Agent 分析报告",
-            "",
-            "## 用户问题",
-            state.get("query", ""),
-            "",
-            "## 检索论文",
-        ]
+        lines = (
+            [
+                "# Paper Agent Analysis Report",
+                "",
+                "## User Question",
+                state.get("query", ""),
+                "",
+                "## Retrieved Papers",
+            ]
+            if english
+            else [
+                "# 论文 Agent 分析报告",
+                "",
+                "## 用户问题",
+                state.get("query", ""),
+                "",
+                "## 检索论文",
+            ]
+        )
         papers = state.get("retrieved_papers", [])
         if papers:
             lines.extend(
@@ -156,12 +194,20 @@ class ReportAgent:
                 for index, paper in enumerate(papers, start=1)
             )
         else:
-            lines.append("- 未检索到相关论文。")
+            lines.append(
+                "- No relevant papers were retrieved."
+                if english
+                else "- 未检索到相关论文。"
+            )
 
         for output in outputs:
             lines.extend(["", f"## {output['title']}"])
             if output["error"]:
-                lines.append(f"执行失败：{output['error']}")
+                lines.append(
+                    f"Execution failed: {output['error']}"
+                    if english
+                    else f"执行失败：{output['error']}"
+                )
             else:
                 lines.append(output["content"])
         return "\n".join(lines).strip() + "\n"
