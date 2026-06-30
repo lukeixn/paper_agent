@@ -59,6 +59,9 @@ TRANSLATIONS = {
         "pdf_preview_hint": "预览以图片方式渲染，不依赖浏览器 PDF 插件。",
         "pdf_page": "PDF 页码",
         "pdf_page_caption": "{name} 第 {page}/{total} 页",
+        "pdf_previous_page": "上一页",
+        "pdf_next_page": "下一页",
+        "pdf_page_status": "第 {page}/{total} 页",
         "download_pdf": "下载原文 PDF",
         "pdf_fallback": "当前浏览器无法内嵌预览 PDF，请使用下载按钮打开原文。",
         "no_agents": "本次问题没有触发分析 Agent。",
@@ -149,6 +152,9 @@ TRANSLATIONS = {
         "pdf_preview_hint": "The preview is rendered as images and does not depend on the browser PDF plugin.",
         "pdf_page": "PDF page",
         "pdf_page_caption": "{name} page {page}/{total}",
+        "pdf_previous_page": "Previous",
+        "pdf_next_page": "Next",
+        "pdf_page_status": "Page {page}/{total}",
         "download_pdf": "Download original PDF",
         "pdf_fallback": "This browser cannot preview the PDF inline. Please use the download button.",
         "no_agents": "This question did not trigger any analysis agent.",
@@ -1181,16 +1187,45 @@ def render_pdf_page_preview(path: Any, *, key_prefix: str) -> None:
         st.warning(tr("pdf_fallback"))
         return
 
-    if page_total == 1:
-        page_number = 1
-    else:
+    page_key = f"{key_prefix}_pdf_page"
+    current_page = int(st.session_state.get(page_key, 1))
+    current_page = max(1, min(current_page, page_total))
+    st.session_state[page_key] = current_page
+
+    if page_total > 1:
+        previous_column, status_column, next_column = st.columns(
+            [1, 1.2, 1]
+        )
+        if previous_column.button(
+            tr("pdf_previous_page"),
+            key=f"{key_prefix}_pdf_previous",
+            disabled=current_page <= 1,
+            width="stretch",
+        ):
+            st.session_state[page_key] = max(1, current_page - 1)
+            st.rerun()
+        status_column.markdown(
+            f"<div style='text-align:center;padding-top:.45rem;color:#667085;'>"
+            f"{tr('pdf_page_status', page=current_page, total=page_total)}"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        if next_column.button(
+            tr("pdf_next_page"),
+            key=f"{key_prefix}_pdf_next",
+            disabled=current_page >= page_total,
+            width="stretch",
+        ):
+            st.session_state[page_key] = min(page_total, current_page + 1)
+            st.rerun()
         page_number = st.slider(
             tr("pdf_page"),
             min_value=1,
             max_value=page_total,
-            value=1,
-            key=f"{key_prefix}_pdf_page",
+            key=page_key,
         )
+    else:
+        page_number = 1
 
     image_bytes = pdf_page_png_bytes(
         str(path),
