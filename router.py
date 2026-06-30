@@ -116,6 +116,7 @@ class Router:
         reason = str(payload.get("reason", "")).strip()
         route = "multi_agent" if len(agents) > 1 else agents[0]
         reason_prefix = "LLM route" if english else "LLM 路由"
+        reason_separator = ": " if english else "："
         fallback_reason = (
             "selected required specialists for this question"
             if english
@@ -124,7 +125,7 @@ class Router:
         return RouteDecision(
             route=route,
             agents=agents,
-            reason=f"{reason_prefix}: {reason or fallback_reason}",
+            reason=f"{reason_prefix}{reason_separator}{reason or fallback_reason}",
         )
 
     @staticmethod

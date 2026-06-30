@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 
 import fitz
 from aggregator import ReportAgent
+from models.langchain_llm import OfflineLLM, get_llm
 from paper_parser import PaperParser
 import ui
 from streamlit.testing.v1 import AppTest
@@ -110,6 +111,21 @@ def test_english_mode_is_passed_to_llm_prompts() -> None:
     assert "must be written entirely in English" in prompt
 
 
+def test_openai_provider_constructs_chat_model() -> None:
+    llm = get_llm(
+        provider="openai",
+        api_key="sk-test-not-real",
+        model_name="gpt-4o",
+        temperature=0.1,
+    )
+    assert not isinstance(llm, OfflineLLM)
+    assert type(llm).__name__ == "ChatOpenAI"
+    assert getattr(llm, "model_name", "") == "gpt-4o"
+
+    offline = get_llm(provider="openai", api_key="", model_name="gpt-4o")
+    assert isinstance(offline, OfflineLLM)
+
+
 def test_topology_component_embeds_clickable_raw_output() -> None:
     captured: dict[str, str] = {}
 
@@ -168,6 +184,11 @@ def test_offline_analysis_ui() -> None:
         and "position: sticky" in item.value
         for item in app.markdown
     )
+
+    app.selectbox[0].set_value("openai").run()
+    assert len(app.exception) == 0
+    assert app.text_input[1].value == "gpt-4o"
+    assert len(app.text_input) == 2
 
     app.selectbox[0].set_value("offline").run()
     app.radio[0].set_value("研究分析").run()
@@ -367,6 +388,7 @@ if __name__ == "__main__":
     test_pdf_preview_renders_pdf_page_as_png()
     test_english_ui_switch_changes_core_labels()
     test_english_mode_is_passed_to_llm_prompts()
+    test_openai_provider_constructs_chat_model()
     test_topology_component_embeds_clickable_raw_output()
     test_offline_analysis_ui()
     test_library_workspace_is_read_only_management()
